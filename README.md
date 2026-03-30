@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Fleet
+# Claude Mission Control
 
 **Multi-agent orchestration for Claude Code — dispatch parallel agents in isolated git worktrees.**
 
@@ -17,14 +17,14 @@ Improved fork of [claude-devfleet](https://github.com/LEC-AI/claude-devfleet).
 
 ---
 
-## Why Claude Fleet?
+## Why Claude Mission Control?
 
 Working on a large feature? Instead of one agent doing everything sequentially, split the work:
 
 ```
 You: "Build a REST API with auth, CRUD endpoints, and tests"
 
-Claude Fleet:
+Claude Mission Control:
   Agent 1 → auth module (worktree: devfleet/auth)
   Agent 2 → CRUD endpoints (worktree: devfleet/crud, depends on: Agent 1)
   Agent 3 → test suite (worktree: devfleet/tests, depends on: Agent 1 + 2)
@@ -39,8 +39,8 @@ All agents auto-merge on success. You get a structured report.
 ### One-Command Start
 
 ```bash
-git clone https://github.com/Cyvid7-Darus10/claude-fleet.git
-cd claude-fleet
+git clone https://github.com/Cyvid7-Darus10/claude-mission-control.git
+cd claude-mission-control
 ./start.sh
 ```
 
@@ -51,13 +51,13 @@ cd claude-fleet
 ### Connect to Claude Code
 
 ```bash
-claude mcp add claude-fleet --transport http http://localhost:18801/mcp
+claude mcp add claude-mission-control --transport http http://localhost:18801/mcp
 ```
 
 Then in Claude Code:
 
 ```
-"Use claude-fleet to plan a project: build a REST API with auth and tests"
+"Use claude-mission-control to plan a project: build a REST API with auth and tests"
 ```
 
 ---
@@ -68,7 +68,7 @@ Then in Claude Code:
 sequenceDiagram
     participant U as You
     participant C as Claude Code
-    participant F as Claude Fleet
+    participant F as Claude Mission Control
     participant A1 as Agent 1
     participant A2 as Agent 2
 
@@ -99,7 +99,7 @@ graph TB
         WS["Windsurf"]
     end
 
-    subgraph Fleet["Claude Fleet (port 18801)"]
+    subgraph Fleet["Claude Mission Control (port 18801)"]
         API["FastAPI + MCP Server"]
         DB["SQLite"]
         SDK["SDK Engine"]
@@ -194,16 +194,16 @@ Each dispatched agent automatically gets two MCP servers:
 ### Option A: One-Command (Recommended)
 
 ```bash
-git clone https://github.com/Cyvid7-Darus10/claude-fleet.git
-cd claude-fleet
+git clone https://github.com/Cyvid7-Darus10/claude-mission-control.git
+cd claude-mission-control
 ./start.sh
 ```
 
 ### Option B: Manual
 
 ```bash
-git clone https://github.com/Cyvid7-Darus10/claude-fleet.git
-cd claude-fleet
+git clone https://github.com/Cyvid7-Darus10/claude-mission-control.git
+cd claude-mission-control
 
 # Backend
 python3 -m venv venv
@@ -229,7 +229,7 @@ docker compose up -d
 <summary><b>Claude Code</b></summary>
 
 ```bash
-claude mcp add claude-fleet --transport http http://localhost:18801/mcp
+claude mcp add claude-mission-control --transport http http://localhost:18801/mcp
 ```
 
 </details>
@@ -241,7 +241,7 @@ Add to `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "claude-fleet": {
+    "claude-mission-control": {
       "type": "http",
       "url": "http://localhost:18801/mcp"
     }
@@ -257,7 +257,7 @@ Add to `.cursor/mcp.json`:
 Add to your MCP settings:
 ```json
 {
-  "claude-fleet": {
+  "claude-mission-control": {
     "type": "http",
     "url": "http://localhost:18801/mcp"
   }
@@ -283,7 +283,7 @@ Add to your MCP settings:
 
 ## Plugins
 
-Extend Claude Fleet with custom tools and hooks. Drop a Python file into `plugins/`:
+Extend Claude Mission Control with custom tools and hooks. Drop a Python file into `plugins/`:
 
 ```python
 # plugins/slack_notify.py
@@ -306,9 +306,9 @@ Plugin tools automatically appear as MCP tools.
 
 | Service | Port |
 |---------|------|
-| Claude Fleet UI (local) | 3100 |
-| Claude Fleet UI (Docker) | 3101 |
-| Claude Fleet API + MCP | 18801 |
+| Claude Mission Control UI (local) | 3100 |
+| Claude Mission Control UI (Docker) | 3101 |
+| Claude Mission Control API + MCP | 18801 |
 
 ---
 
