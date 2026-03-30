@@ -10,13 +10,14 @@ const NAV = [
 ];
 
 export default function Sidebar({ activePage, navigate }) {
-  const [runningAgents, setRunningAgents] = useState(0);
+  const [activeMissions, setActiveMissions] = useState(0);
 
   useEffect(() => {
     const poll = async () => {
       try {
         const stats = await getDashboardStats();
-        setRunningAgents(stats.running_agents || 0);
+        const mbs = stats.missions_by_status || {};
+        setActiveMissions((mbs.running || 0) + (mbs.queued || 0));
       } catch {}
     };
     poll();
@@ -24,13 +25,13 @@ export default function Sidebar({ activePage, navigate }) {
     return () => clearInterval(id);
   }, []);
 
-  const isActive = runningAgents > 0;
+  const isActive = activeMissions > 0;
 
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <h1>Claude <span className="logo-gradient">DevFleet</span></h1>
-        <p>Coding Team Orchestrator</p>
+        <h1>Claude <span className="logo-gradient">Mission Control</span></h1>
+        <p>Mission Orchestrator</p>
         <p className="powered-by">Powered by Claude Code</p>
       </div>
 
@@ -55,14 +56,14 @@ export default function Sidebar({ activePage, navigate }) {
         <div className={`agent-indicator ${isActive ? 'agents-active' : ''}`}>
           <div className="agent-ring-wrapper">
             {isActive && <div className="agent-pulse-ring" />}
-            <div className={`agent-dot ${runningAgents === 0 ? 'idle' : ''}`} />
+            <div className={`agent-dot ${activeMissions === 0 ? 'idle' : ''}`} />
           </div>
           <div className="agent-status-text">
-            <span className="agent-count">{runningAgents}</span>
-            {' '}agent{runningAgents !== 1 ? 's' : ''} running
+            <span className="agent-count">{activeMissions}</span>
+            {' '}mission{activeMissions !== 1 ? 's' : ''} active
           </div>
         </div>
-        <div className="sidebar-version">v2.0</div>
+        <div className="sidebar-version">v3.0</div>
       </div>
     </aside>
   );

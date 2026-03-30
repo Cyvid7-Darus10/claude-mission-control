@@ -1,28 +1,11 @@
 import React from 'react';
 import StatusBadge from './StatusBadge';
+import { timeAgo } from '../utils/timeAgo';
 
 function priorityClass(p) {
   if (p >= 3) return 'priority-high';
   if (p >= 1) return 'priority-medium';
   return 'priority-low';
-}
-
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  // Handle both SQLite "2026-03-10 09:19:20" and ISO "2026-03-10T13:33:44+00:00"
-  let normalized = dateStr;
-  if (!normalized.includes('T')) normalized = normalized.replace(' ', 'T');
-  if (!normalized.endsWith('Z') && !normalized.includes('+')) normalized += 'Z';
-  const ts = new Date(normalized).getTime();
-  if (isNaN(ts)) return '';
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 export default function MissionCard({ mission, onClick }) {

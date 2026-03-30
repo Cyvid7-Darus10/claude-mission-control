@@ -1,46 +1,51 @@
 """
-Claude DevFleet MCP Server — External integration endpoint.
+Mission Control MCP Server — Mission Tracker endpoint.
 
-Exposes Claude DevFleet as an MCP server so any MCP-compatible client
+Exposes Mission Control as an MCP server so any MCP-compatible client
 (Claude Code, Cursor, Windsurf, Cline, custom agents) can:
   - Plan projects from natural language
-  - Create projects and missions
-  - Dispatch agents
+  - Create and manage projects and missions
+  - Update mission status and submit reports
+  - Query unblocked missions and cost summaries
   - Check mission status and read reports
   - List and browse projects/missions
 
 Mount via SSE transport at /mcp on the FastAPI app.
 """
 
-import asyncio
 import json
 import logging
 import os
 import re
 import uuid
+from datetime import datetime, timezone
 
 from mcp.server import Server
 import mcp.types as types
 
 import db
 
-log = logging.getLogger("devfleet.mcp-external")
+log = logging.getLogger("mission-control.mcp-external")
 
-server = Server("devfleet")
+server = Server("mission-control")
 
 
 # ── Helper: resolve projects dir ──
 
 def _projects_base() -> str:
-    base = os.environ.get("DEVFLEET_PROJECTS_DIR")
+    base = os.environ.get("MISSION_CONTROL_PROJECTS_DIR")
     if not base:
-        devfleet_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        base = os.path.join(devfleet_root, "projects")
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base = os.path.join(root, "projects")
     return base
 
 
 def _slugify(text: str, max_len: int = 40) -> str:
     return re.sub(r'[^a-z0-9]+', '-', text.lower().strip())[:max_len].strip('-')
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 # ── Tool Definitions ──
@@ -50,19 +55,19 @@ TOOLS = [
         name="plan_project",
         description=(
             "Plan a project from a natural language description. "
-            "AI breaks the prompt into a project with chained missions, "
-            "dependencies, and auto-dispatch. Returns project ID and mission list."
+            "AI breaks the prompt into a project with missions and dependencies. "
+            "Returns project ID and mission list."
         ),
         inputSchema={
             "type": "object",
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "Natural language description of what to build"
+                    "description": "Natural language description of what to build",
                 },
                 "project_path": {
                     "type": "string",
-                    "description": "Optional filesystem path for the project. Auto-generated if not provided."
+                    "description": "Optional filesystem path for the project. Auto-generated if not provided.",
                 },
             },
             "required": ["prompt"],
@@ -70,7 +75,7 @@ TOOLS = [
     ),
     types.Tool(
         name="create_project",
-        description="Create a new Claude DevFleet project manually.",
+        description="Create a new project manually.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -85,21 +90,20 @@ TOOLS = [
         name="create_mission",
         description=(
             "Create a mission (task) in an existing project. "
-            "Supports dependencies, auto-dispatch, and priority."
+            "Supports dependencies and priority."
         ),
         inputSchema={
             "type": "object",
             "properties": {
                 "project_id": {"type": "string", "description": "ID of the project"},
                 "title": {"type": "string", "description": "Mission title"},
-                "prompt": {"type": "string", "description": "Detailed prompt / instructions for the agent"},
+                "prompt": {"type": "string", "description": "Detailed prompt / instructions"},
                 "acceptance_criteria": {"type": "string", "description": "What counts as done"},
                 "depends_on": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of mission IDs this depends on"
+                    "description": "List of mission IDs this depends on",
                 },
-                "auto_dispatch": {"type": "boolean", "description": "Auto-dispatch when dependencies complete"},
                 "priority": {"type": "integer", "description": "Priority (0=normal, 1=high, 2=critical)"},
                 "model": {"type": "string", "description": "Model to use (default: claude-sonnet-4-20250514)"},
             },
@@ -107,16 +111,54 @@ TOOLS = [
         },
     ),
     types.Tool(
-        name="dispatch_mission",
-        description="Dispatch an agent to work on a mission. The agent runs asynchronously.",
+        name="update_mission_status",
+        description=(
+            "Update the status of a mission. Optionally create or update a session "
+            "with cost and token data."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
-                "mission_id": {"type": "string", "description": "ID of the mission to dispatch"},
-                "model": {"type": "string", "description": "Override model for this dispatch"},
-                "max_turns": {"type": "integer", "description": "Max conversation turns"},
+                "mission_id": {"type": "string", "description": "Mission ID"},
+                "status": {
+                    "type": "string",
+                    "description": "New status",
+                    "enum": ["draft", "ready", "running", "completed", "failed"],
+                },
+                "session_id": {
+                    "type": "string",
+                    "description": "Session ID to create or update. Auto-generated if status is 'running' and not provided.",
+                },
+                "model": {"type": "string", "description": "Model used for the session"},
+                "cost_usd": {"type": "number", "description": "Total cost in USD for the session"},
+                "total_tokens": {"type": "integer", "description": "Total tokens used in the session"},
             },
-            "required": ["mission_id"],
+            "required": ["mission_id", "status"],
+        },
+    ),
+    types.Tool(
+        name="submit_report",
+        description=(
+            "Submit a structured report for a mission. Creates a report record "
+            "linked to the mission and its latest session."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "mission_id": {"type": "string", "description": "Mission ID"},
+                "session_id": {
+                    "type": "string",
+                    "description": "Session ID. Uses the latest session if not provided.",
+                },
+                "files_changed": {"type": "string", "description": "Files changed (newline-separated or comma-separated)"},
+                "what_done": {"type": "string", "description": "Summary of what was accomplished"},
+                "what_open": {"type": "string", "description": "What remains open / incomplete"},
+                "what_tested": {"type": "string", "description": "What was tested"},
+                "what_untested": {"type": "string", "description": "What was not tested"},
+                "next_steps": {"type": "string", "description": "Recommended next steps"},
+                "errors_encountered": {"type": "string", "description": "Errors encountered during the mission"},
+            },
+            "required": ["mission_id", "what_done"],
         },
     ),
     types.Tool(
@@ -147,8 +189,49 @@ TOOLS = [
         },
     ),
     types.Tool(
+        name="get_unblocked_missions",
+        description=(
+            "Get missions whose dependencies are all satisfied (completed) but "
+            "that have not yet started. Useful for finding the next work to pick up."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Optional project ID to scope the query. Returns across all projects if omitted.",
+                },
+            },
+        },
+    ),
+    types.Tool(
+        name="get_cost_summary",
+        description=(
+            "Get aggregated cost and token data across sessions, optionally scoped "
+            "to a project or mission."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "string", "description": "Optional project ID filter"},
+                "mission_id": {"type": "string", "description": "Optional mission ID filter"},
+            },
+        },
+    ),
+    types.Tool(
+        name="get_dashboard",
+        description=(
+            "Get a high-level dashboard: project count, mission stats by status, "
+            "recent activity, and cost totals."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {},
+        },
+    ),
+    types.Tool(
         name="list_projects",
-        description="List all Claude DevFleet projects.",
+        description="List all projects.",
         inputSchema={
             "type": "object",
             "properties": {},
@@ -163,51 +246,11 @@ TOOLS = [
                 "project_id": {"type": "string", "description": "Project ID"},
                 "status": {
                     "type": "string",
-                    "description": "Filter by status (draft, running, completed, failed)",
-                    "enum": ["draft", "running", "completed", "failed"],
+                    "description": "Filter by status",
+                    "enum": ["draft", "ready", "running", "completed", "failed"],
                 },
             },
             "required": ["project_id"],
-        },
-    ),
-    types.Tool(
-        name="cancel_mission",
-        description="Cancel a running mission and stop its agent.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "mission_id": {"type": "string", "description": "Mission ID to cancel"},
-            },
-            "required": ["mission_id"],
-        },
-    ),
-    types.Tool(
-        name="wait_for_mission",
-        description=(
-            "Wait for a mission to complete and return its final status and report. "
-            "Polls every 5 seconds. Use after dispatch_mission to block until done."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "mission_id": {"type": "string", "description": "Mission ID to wait for"},
-                "timeout_seconds": {
-                    "type": "integer",
-                    "description": "Max seconds to wait (default: 600, max: 1800)",
-                },
-            },
-            "required": ["mission_id"],
-        },
-    ),
-    types.Tool(
-        name="get_dashboard",
-        description=(
-            "Get a high-level dashboard of Claude DevFleet: running agents, "
-            "project count, mission stats, and recent activity."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {},
         },
     ),
 ]
@@ -215,19 +258,13 @@ TOOLS = [
 
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:
-    from plugins import registry
-    return TOOLS + registry.tools
+    return TOOLS
 
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     try:
-        # Check plugin tools first
-        from plugins import registry
-        if name in registry.tool_handlers:
-            result = await registry.tool_handlers[name](arguments)
-        else:
-            result = await _handle_tool(name, arguments)
+        result = await _handle_tool(name, arguments)
         return [types.TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
     except Exception as e:
         log.exception(f"MCP tool {name} failed")
@@ -243,22 +280,24 @@ async def _handle_tool(name: str, args: dict) -> dict:
             return await _create_project(args, conn)
         elif name == "create_mission":
             return await _create_mission(args, conn)
-        elif name == "dispatch_mission":
-            return await _dispatch_mission(args, conn)
+        elif name == "update_mission_status":
+            return await _update_mission_status(args, conn)
+        elif name == "submit_report":
+            return await _submit_report(args, conn)
         elif name == "get_mission_status":
             return await _get_mission_status(args, conn)
         elif name == "get_report":
             return await _get_report(args, conn)
+        elif name == "get_unblocked_missions":
+            return await _get_unblocked_missions(args, conn)
+        elif name == "get_cost_summary":
+            return await _get_cost_summary(args, conn)
+        elif name == "get_dashboard":
+            return await _get_dashboard(conn)
         elif name == "list_projects":
             return await _list_projects(conn)
         elif name == "list_missions":
             return await _list_missions(args, conn)
-        elif name == "cancel_mission":
-            return await _cancel_mission(args, conn)
-        elif name == "wait_for_mission":
-            return await _wait_for_mission(args)
-        elif name == "get_dashboard":
-            return await _get_dashboard(conn)
         else:
             return {"error": f"Unknown tool: {name}"}
     finally:
@@ -287,11 +326,10 @@ async def _plan_project(args: dict, conn) -> dict:
                 "number": m["mission_number"],
                 "title": m["title"],
                 "depends_on": m["depends_on"],
-                "auto_dispatch": m["auto_dispatch"],
             }
             for m in result["missions"]
         ],
-        "hint": "Dispatch the first mission to start the chain. The rest auto-dispatch as dependencies complete.",
+        "hint": "Use update_mission_status to mark missions as running/completed as you work through them.",
     }
 
 
@@ -328,13 +366,12 @@ async def _create_mission(args: dict, conn) -> dict:
     next_num = (await cur.fetchone())[0]
 
     depends_on = json.dumps(args.get("depends_on", []))
-    auto_dispatch = 1 if args.get("auto_dispatch", False) else 0
 
     await conn.execute(
         """INSERT INTO missions
            (id, project_id, title, detailed_prompt, acceptance_criteria,
-            depends_on, auto_dispatch, priority, model, mission_number)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            depends_on, priority, model, mission_number, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')""",
         (
             mid,
             args["project_id"],
@@ -342,7 +379,6 @@ async def _create_mission(args: dict, conn) -> dict:
             args["prompt"],
             args.get("acceptance_criteria", ""),
             depends_on,
-            auto_dispatch,
             args.get("priority", 0),
             args.get("model", "claude-sonnet-4-20250514"),
             next_num,
@@ -355,90 +391,162 @@ async def _create_mission(args: dict, conn) -> dict:
         "mission_number": next_num,
         "title": args["title"],
         "project_id": args["project_id"],
-        "auto_dispatch": bool(auto_dispatch),
         "depends_on": args.get("depends_on", []),
+        "status": "draft",
     }
 
 
-async def _dispatch_mission(args: dict, conn) -> dict:
-    import uuid as _uuid
-    from datetime import datetime, timezone
-
+async def _update_mission_status(args: dict, conn) -> dict:
     mid = args["mission_id"]
+    new_status = args["status"]
 
-    # Fetch mission with project path (needed by dispatch engine)
-    cur = await conn.execute(
-        "SELECT m.*, p.path AS project_path FROM missions m "
-        "JOIN projects p ON p.id = m.project_id WHERE m.id = ?",
-        (mid,),
-    )
+    # Verify mission exists
+    cur = await conn.execute("SELECT * FROM missions WHERE id = ?", (mid,))
     mission = await cur.fetchone()
     if not mission:
         return {"error": f"Mission {mid} not found"}
-
     mission = dict(mission)
-    if mission["status"] == "running":
-        return {"error": "Mission is already running"}
 
-    # Check agent slot availability
-    from app import running_tasks, MAX_CONCURRENT_AGENTS
+    now = _now_iso()
 
-    running_count = sum(1 for t in running_tasks.values() if not t.done())
-    if running_count >= MAX_CONCURRENT_AGENTS:
-        return {"error": f"All {MAX_CONCURRENT_AGENTS} agent slots in use. Wait for one to finish or cancel a running mission."}
-
-    # Get last report for context (matches app.py flow)
-    cur = await conn.execute(
-        "SELECT * FROM reports WHERE mission_id = ? ORDER BY created_at DESC LIMIT 1",
-        (mid,),
-    )
-    report_row = await cur.fetchone()
-    last_report = dict(report_row) if report_row else None
-
-    # Create session in DB (matches app.py flow)
-    session_id = str(_uuid.uuid4())
-    model_used = args.get("model") or mission.get("model") or "claude-opus-4-6"
+    # Update mission status
     await conn.execute(
-        "INSERT INTO agent_sessions (id, mission_id, model) VALUES (?, ?, ?)",
-        (session_id, mid, model_used),
+        "UPDATE missions SET status = ?, updated_at = ? WHERE id = ?",
+        (new_status, now, mid),
     )
+
+    session_id = args.get("session_id")
+    session_result = None
+
+    # If transitioning to running, create a session if one doesn't exist
+    if new_status == "running":
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        model = args.get("model") or mission.get("model") or "claude-sonnet-4-20250514"
+        # Check if session already exists
+        cur = await conn.execute("SELECT id FROM agent_sessions WHERE id = ?", (session_id,))
+        existing = await cur.fetchone()
+        if existing:
+            # Update existing session
+            updates = ["status = 'running'"]
+            params = []
+            if args.get("model"):
+                updates.append("model = ?")
+                params.append(args["model"])
+            if args.get("cost_usd") is not None:
+                updates.append("total_cost_usd = ?")
+                params.append(args["cost_usd"])
+            if args.get("total_tokens") is not None:
+                updates.append("total_tokens = ?")
+                params.append(args["total_tokens"])
+            params.append(session_id)
+            await conn.execute(
+                f"UPDATE agent_sessions SET {', '.join(updates)} WHERE id = ?",
+                params,
+            )
+        else:
+            # Create new session
+            await conn.execute(
+                "INSERT INTO agent_sessions (id, mission_id, model, status) VALUES (?, ?, ?, 'running')",
+                (session_id, mid, model),
+            )
+        session_result = {"session_id": session_id, "model": model}
+
+    # If transitioning to completed or failed, finalize the session
+    elif new_status in ("completed", "failed"):
+        if session_id:
+            target_sid = session_id
+        else:
+            # Find the latest running session
+            cur = await conn.execute(
+                "SELECT id FROM agent_sessions WHERE mission_id = ? ORDER BY started_at DESC LIMIT 1",
+                (mid,),
+            )
+            row = await cur.fetchone()
+            target_sid = row["id"] if row else None
+
+        if target_sid:
+            session_status = "completed" if new_status == "completed" else "failed"
+            updates = [f"status = '{session_status}'", f"ended_at = '{now}'"]
+            params = []
+            if args.get("cost_usd") is not None:
+                updates.append("total_cost_usd = ?")
+                params.append(args["cost_usd"])
+            if args.get("total_tokens") is not None:
+                updates.append("total_tokens = ?")
+                params.append(args["total_tokens"])
+            params.append(target_sid)
+            await conn.execute(
+                f"UPDATE agent_sessions SET {', '.join(updates)} WHERE id = ?",
+                params,
+            )
+            session_result = {"session_id": target_sid, "status": session_status}
+
+    await conn.commit()
+
+    result = {
+        "mission_id": mid,
+        "status": new_status,
+        "updated_at": now,
+    }
+    if session_result:
+        result["session"] = session_result
+
+    return result
+
+
+async def _submit_report(args: dict, conn) -> dict:
+    mid = args["mission_id"]
+
+    # Verify mission exists
+    cur = await conn.execute("SELECT id FROM missions WHERE id = ?", (mid,))
+    if not await cur.fetchone():
+        return {"error": f"Mission {mid} not found"}
+
+    # Resolve session ID
+    session_id = args.get("session_id")
+    if not session_id:
+        cur = await conn.execute(
+            "SELECT id FROM agent_sessions WHERE mission_id = ? ORDER BY started_at DESC LIMIT 1",
+            (mid,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            # Create a placeholder session so the report has a valid FK
+            session_id = str(uuid.uuid4())
+            await conn.execute(
+                "INSERT INTO agent_sessions (id, mission_id, status) VALUES (?, ?, 'completed')",
+                (session_id, mid),
+            )
+        else:
+            session_id = row["id"]
+
+    report_id = str(uuid.uuid4())
     await conn.execute(
-        "UPDATE missions SET status='running', updated_at=? WHERE id=?",
-        (datetime.now(timezone.utc).isoformat(), mid),
+        """INSERT INTO reports
+           (id, session_id, mission_id, files_changed, what_done, what_open,
+            what_tested, what_untested, next_steps, errors_encountered)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            report_id,
+            session_id,
+            mid,
+            args.get("files_changed", ""),
+            args.get("what_done", ""),
+            args.get("what_open", ""),
+            args.get("what_tested", ""),
+            args.get("what_untested", ""),
+            args.get("next_steps", ""),
+            args.get("errors_encountered", ""),
+        ),
     )
     await conn.commit()
 
-    # Import and dispatch
-    USE_SDK = os.environ.get("DEVFLEET_ENGINE", "sdk").lower() == "sdk"
-    if USE_SDK:
-        from sdk_engine import dispatch_mission
-    else:
-        from dispatcher import dispatch_mission
-
-    # Build opts from args
-    from models import DispatchOptions
-
-    opts_kwargs = {}
-    if args.get("model"):
-        opts_kwargs["model"] = args["model"]
-    if args.get("max_turns"):
-        opts_kwargs["max_turns"] = args["max_turns"]
-    opts = DispatchOptions(**opts_kwargs) if opts_kwargs else None
-
-    # Dispatch asynchronously (matches app.py flow)
-    import asyncio
-
-    task = asyncio.create_task(
-        dispatch_mission(session_id, mission, last_report, opts=opts)
-    )
-    running_tasks[session_id] = task
-
     return {
-        "session_id": session_id,
+        "report_id": report_id,
         "mission_id": mid,
-        "status": "dispatched",
-        "model": model_used,
-        "hint": "Mission is now running. Use get_mission_status to check progress.",
+        "session_id": session_id,
+        "status": "submitted",
     }
 
 
@@ -464,7 +572,8 @@ async def _get_mission_status(args: dict, conn) -> dict:
         "status": mission["status"],
         "mission_number": mission["mission_number"],
         "depends_on": json.loads(mission["depends_on"] or "[]"),
-        "auto_dispatch": bool(mission["auto_dispatch"]),
+        "priority": mission["priority"],
+        "project_id": mission["project_id"],
     }
 
     if session:
@@ -495,6 +604,7 @@ async def _get_report(args: dict, conn) -> dict:
     report = dict(report)
     return {
         "mission_id": mid,
+        "report_id": report["id"],
         "files_changed": report["files_changed"],
         "what_done": report["what_done"],
         "what_open": report["what_open"],
@@ -503,6 +613,173 @@ async def _get_report(args: dict, conn) -> dict:
         "next_steps": report["next_steps"],
         "errors_encountered": report["errors_encountered"],
         "created_at": report["created_at"],
+    }
+
+
+async def _get_unblocked_missions(args: dict, conn) -> dict:
+    """Find missions in draft/ready status whose dependencies are all completed."""
+    project_id = args.get("project_id")
+
+    if project_id:
+        cur = await conn.execute(
+            "SELECT * FROM missions WHERE project_id = ? AND status IN ('draft', 'ready') ORDER BY priority DESC, mission_number",
+            (project_id,),
+        )
+    else:
+        cur = await conn.execute(
+            "SELECT * FROM missions WHERE status IN ('draft', 'ready') ORDER BY priority DESC, mission_number",
+        )
+
+    rows = await cur.fetchall()
+    unblocked = []
+
+    for row in rows:
+        m = dict(row)
+        deps = json.loads(m["depends_on"] or "[]")
+
+        if not deps:
+            # No dependencies — always unblocked
+            unblocked.append(m)
+            continue
+
+        # Check if all dependencies are completed
+        placeholders = ",".join("?" for _ in deps)
+        dep_cur = await conn.execute(
+            f"SELECT COUNT(*) FROM missions WHERE id IN ({placeholders}) AND status = 'completed'",
+            deps,
+        )
+        completed_count = (await dep_cur.fetchone())[0]
+
+        if completed_count == len(deps):
+            unblocked.append(m)
+
+    return {
+        "missions": [
+            {
+                "id": m["id"],
+                "title": m["title"],
+                "status": m["status"],
+                "mission_number": m["mission_number"],
+                "project_id": m["project_id"],
+                "depends_on": json.loads(m["depends_on"] or "[]"),
+                "priority": m["priority"],
+            }
+            for m in unblocked
+        ],
+        "count": len(unblocked),
+    }
+
+
+async def _get_cost_summary(args: dict, conn) -> dict:
+    """Aggregate cost and token data across sessions."""
+    mission_id = args.get("mission_id")
+    project_id = args.get("project_id")
+
+    if mission_id:
+        cur = await conn.execute(
+            "SELECT COUNT(*) as session_count, "
+            "COALESCE(SUM(total_cost_usd), 0) as total_cost_usd, "
+            "COALESCE(SUM(total_tokens), 0) as total_tokens "
+            "FROM agent_sessions WHERE mission_id = ?",
+            (mission_id,),
+        )
+        row = dict(await cur.fetchone())
+        row["scope"] = "mission"
+        row["mission_id"] = mission_id
+        return row
+
+    elif project_id:
+        cur = await conn.execute(
+            "SELECT COUNT(*) as session_count, "
+            "COALESCE(SUM(s.total_cost_usd), 0) as total_cost_usd, "
+            "COALESCE(SUM(s.total_tokens), 0) as total_tokens "
+            "FROM agent_sessions s "
+            "JOIN missions m ON s.mission_id = m.id "
+            "WHERE m.project_id = ?",
+            (project_id,),
+        )
+        row = dict(await cur.fetchone())
+        row["scope"] = "project"
+        row["project_id"] = project_id
+
+        # Per-mission breakdown
+        cur = await conn.execute(
+            "SELECT m.id, m.title, m.mission_number, "
+            "COUNT(s.id) as session_count, "
+            "COALESCE(SUM(s.total_cost_usd), 0) as cost_usd, "
+            "COALESCE(SUM(s.total_tokens), 0) as tokens "
+            "FROM missions m "
+            "LEFT JOIN agent_sessions s ON s.mission_id = m.id "
+            "WHERE m.project_id = ? "
+            "GROUP BY m.id ORDER BY m.mission_number",
+            (project_id,),
+        )
+        row["missions"] = [dict(r) for r in await cur.fetchall()]
+        return row
+
+    else:
+        # Global summary
+        cur = await conn.execute(
+            "SELECT COUNT(*) as session_count, "
+            "COALESCE(SUM(total_cost_usd), 0) as total_cost_usd, "
+            "COALESCE(SUM(total_tokens), 0) as total_tokens "
+            "FROM agent_sessions",
+        )
+        row = dict(await cur.fetchone())
+        row["scope"] = "global"
+
+        # Per-project breakdown
+        cur = await conn.execute(
+            "SELECT p.id, p.name, "
+            "COUNT(s.id) as session_count, "
+            "COALESCE(SUM(s.total_cost_usd), 0) as cost_usd, "
+            "COALESCE(SUM(s.total_tokens), 0) as tokens "
+            "FROM projects p "
+            "LEFT JOIN missions m ON m.project_id = p.id "
+            "LEFT JOIN agent_sessions s ON s.mission_id = m.id "
+            "GROUP BY p.id ORDER BY cost_usd DESC",
+        )
+        row["projects"] = [dict(r) for r in await cur.fetchall()]
+        return row
+
+
+async def _get_dashboard(conn) -> dict:
+    # Project count
+    cur = await conn.execute("SELECT COUNT(*) FROM projects")
+    project_count = (await cur.fetchone())[0]
+
+    # Mission stats by status
+    cur = await conn.execute(
+        "SELECT status, COUNT(*) as cnt FROM missions GROUP BY status"
+    )
+    mission_stats = {row["status"]: row["cnt"] for row in await cur.fetchall()}
+
+    # Total cost
+    cur = await conn.execute(
+        "SELECT COALESCE(SUM(total_cost_usd), 0) as cost, COALESCE(SUM(total_tokens), 0) as tokens "
+        "FROM agent_sessions"
+    )
+    cost_row = dict(await cur.fetchone())
+
+    # Recent completions (last 5)
+    cur = await conn.execute(
+        "SELECT m.id, m.title, m.status, m.updated_at, s.total_cost_usd "
+        "FROM missions m LEFT JOIN agent_sessions s ON m.id = s.mission_id "
+        "WHERE m.status IN ('completed', 'failed') "
+        "ORDER BY m.updated_at DESC LIMIT 5"
+    )
+    recent = [dict(r) for r in await cur.fetchall()]
+
+    # Unblocked count (missions ready to start)
+    unblocked_result = await _get_unblocked_missions({}, conn)
+
+    return {
+        "projects": project_count,
+        "missions": mission_stats,
+        "total_cost_usd": cost_row["cost"],
+        "total_tokens": cost_row["tokens"],
+        "unblocked_missions": unblocked_result["count"],
+        "recent_activity": recent,
     }
 
 
@@ -521,13 +798,13 @@ async def _list_missions(args: dict, conn) -> dict:
 
     if status:
         cur = await conn.execute(
-            "SELECT id, title, status, mission_number, depends_on, auto_dispatch, priority, created_at "
+            "SELECT id, title, status, mission_number, depends_on, priority, created_at, updated_at "
             "FROM missions WHERE project_id = ? AND status = ? ORDER BY mission_number",
             (pid, status),
         )
     else:
         cur = await conn.execute(
-            "SELECT id, title, status, mission_number, depends_on, auto_dispatch, priority, created_at "
+            "SELECT id, title, status, mission_number, depends_on, priority, created_at, updated_at "
             "FROM missions WHERE project_id = ? ORDER BY mission_number",
             (pid,),
         )
@@ -537,124 +814,6 @@ async def _list_missions(args: dict, conn) -> dict:
     for r in rows:
         m = dict(r)
         m["depends_on"] = json.loads(m["depends_on"] or "[]")
-        m["auto_dispatch"] = bool(m["auto_dispatch"])
         missions.append(m)
 
     return {"missions": missions, "count": len(missions)}
-
-
-async def _cancel_mission(args: dict, conn) -> dict:
-    mid = args["mission_id"]
-
-    # Find running session
-    cur = await conn.execute(
-        "SELECT id, pid FROM agent_sessions WHERE mission_id = ? AND status = 'running' ORDER BY started_at DESC LIMIT 1",
-        (mid,),
-    )
-    session = await cur.fetchone()
-    if not session:
-        return {"error": f"No running session for mission {mid}"}
-
-    session = dict(session)
-    sid = session["id"]
-
-    # Try to cancel the process
-    try:
-        from sdk_engine import cancel_session
-        await cancel_session(sid)
-    except Exception as e:
-        log.warning(f"cancel_session failed for {sid}: {e}")
-        # Fallback: kill PID if available
-        pid = session.get("pid")
-        if pid:
-            try:
-                import signal
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-
-    # Update status
-    await conn.execute("UPDATE agent_sessions SET status = 'cancelled' WHERE id = ?", (sid,))
-    await conn.execute("UPDATE missions SET status = 'failed' WHERE id = ?", (mid,))
-    await conn.commit()
-
-    return {"mission_id": mid, "session_id": sid, "status": "cancelled"}
-
-
-async def _wait_for_mission(args: dict) -> dict:
-    mid = args["mission_id"]
-    timeout = min(args.get("timeout_seconds", 600), 1800)  # cap at 30 min
-    elapsed = 0
-    poll_interval = 5
-
-    while elapsed < timeout:
-        conn = await db.get_db()
-        try:
-            cur = await conn.execute("SELECT status FROM missions WHERE id = ?", (mid,))
-            row = await cur.fetchone()
-            if not row:
-                return {"error": f"Mission {mid} not found"}
-
-            status = row["status"]
-            if status in ("completed", "failed"):
-                # Get report if available
-                result = await _get_mission_status({"mission_id": mid}, conn)
-                report_cur = await conn.execute(
-                    "SELECT * FROM reports WHERE mission_id = ? ORDER BY created_at DESC LIMIT 1",
-                    (mid,),
-                )
-                report = await report_cur.fetchone()
-                if report:
-                    report = dict(report)
-                    result["report"] = {
-                        "what_done": report["what_done"],
-                        "what_tested": report["what_tested"],
-                        "what_untested": report["what_untested"],
-                        "files_changed": report["files_changed"],
-                        "errors_encountered": report["errors_encountered"],
-                        "next_steps": report["next_steps"],
-                    }
-                return result
-        finally:
-            await conn.close()
-
-        await asyncio.sleep(poll_interval)
-        elapsed += poll_interval
-
-    return {"mission_id": mid, "status": "timeout", "error": f"Mission did not complete within {timeout}s"}
-
-
-async def _get_dashboard(conn) -> dict:
-    # Project count
-    cur = await conn.execute("SELECT COUNT(*) FROM projects")
-    project_count = (await cur.fetchone())[0]
-
-    # Mission stats
-    cur = await conn.execute(
-        "SELECT status, COUNT(*) as cnt FROM missions GROUP BY status"
-    )
-    mission_stats = {row["status"]: row["cnt"] for row in await cur.fetchall()}
-
-    # Running agents
-    cur = await conn.execute(
-        "SELECT s.id, s.mission_id, m.title FROM agent_sessions s "
-        "JOIN missions m ON s.mission_id = m.id WHERE s.status = 'running'"
-    )
-    running = [dict(r) for r in await cur.fetchall()]
-
-    # Recent completions (last 5)
-    cur = await conn.execute(
-        "SELECT m.id, m.title, m.status, s.ended_at, s.total_cost_usd "
-        "FROM missions m LEFT JOIN agent_sessions s ON m.id = s.mission_id "
-        "WHERE m.status IN ('completed', 'failed') "
-        "ORDER BY s.ended_at DESC LIMIT 5"
-    )
-    recent = [dict(r) for r in await cur.fetchall()]
-
-    return {
-        "projects": project_count,
-        "missions": mission_stats,
-        "running_agents": running,
-        "agent_slots": f"{len(running)}/{os.environ.get('DEVFLEET_MAX_AGENTS', '3')}",
-        "recent_activity": recent,
-    }
