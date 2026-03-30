@@ -16,7 +16,6 @@ async function request(path, options = {}) {
 export const listProjects = () => request('/projects');
 export const createProject = (data) => request('/projects', { method: 'POST', body: JSON.stringify(data) });
 export const getProject = (id) => request(`/projects/${id}`);
-export const updateProject = (id, data) => request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteProject = (id) => request(`/projects/${id}`, { method: 'DELETE' });
 
 // ── Missions ──
@@ -32,20 +31,14 @@ export const createMission = (data) => request('/missions', { method: 'POST', bo
 export const getMission = (id) => request(`/missions/${id}`);
 export const updateMission = (id, data) => request(`/missions/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteMission = (id) => request(`/missions/${id}`, { method: 'DELETE' });
-export const dispatchMission = (id, opts = null) =>
-  request(`/missions/${id}/dispatch`, { method: 'POST', body: opts ? JSON.stringify(opts) : '{}' });
 export const generateNextMission = (id) => request(`/missions/${id}/generate-next`, { method: 'POST' });
-export const resumeMission = (id, opts = null) =>
-  request(`/missions/${id}/resume`, { method: 'POST', body: opts ? JSON.stringify(opts) : '{}' });
 
-// ── Mission Children, Events & Scheduling ──
-export const getMissionChildren = (id) => request(`/missions/${id}/children`);
+// ── Mission Events & Scheduling ──
 export const getMissionEvents = (id) => request(`/missions/${id}/events`);
 export const setMissionSchedule = (id, cron) =>
   request(`/missions/${id}/schedule`, { method: 'POST', body: JSON.stringify({ cron, enabled: true }) });
 export const removeMissionSchedule = (id) =>
   request(`/missions/${id}/schedule`, { method: 'DELETE' });
-export const listSchedules = () => request('/schedules');
 
 // ── Sessions ──
 export function listSessions(filters = {}) {
@@ -56,43 +49,10 @@ export function listSessions(filters = {}) {
   return request(`/sessions${qs ? '?' + qs : ''}`);
 }
 export const getSession = (id) => request(`/sessions/${id}`);
-export const cancelSession = (id) => request(`/sessions/${id}/cancel`, { method: 'POST' });
-
-// ── SSE streaming for live agent output ──
-export function streamSession(sessionId, { onEvent, onBackfill, onDone, onError }) {
-  const evtSource = new EventSource(`${API}/sessions/${sessionId}/stream`);
-
-  evtSource.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      if (data.type === 'done') {
-        onDone?.(data);
-        evtSource.close();
-      } else if (data.type === 'backfill') {
-        onBackfill?.(data.text);
-      } else if (data.type === 'config') {
-        // Dispatch config event — model, limits, mission type
-        onEvent?.({ type: 'config', ...data });
-      } else if (data.type === 'text' || data.type === 'tool' || data.type === 'tool_result') {
-        onEvent?.({ type: data.type, text: data.text });
-      } else if (data.type === 'usage') {
-        const cost = data.cost ? `$${data.cost.toFixed(4)}` : '';
-        const tokens = data.usage ? `${data.usage.input_tokens || 0} in / ${data.usage.output_tokens || 0} out` : '';
-        const parts = [tokens, cost].filter(Boolean).join(' | ');
-        if (parts) onEvent?.({ type: 'usage', text: `\n--- ${parts} ---\n` });
-      }
-    } catch (err) {
-      console.error('SSE parse error:', err);
-    }
-  };
-
-  evtSource.onerror = (e) => {
-    onError?.(e);
-    evtSource.close();
-  };
-
-  return () => evtSource.close();
-}
+export const createSession = (missionId, model) =>
+  request('/sessions', { method: 'POST', body: JSON.stringify({ mission_id: missionId, model }) });
+export const updateSession = (sessionId, data) =>
+  request(`/sessions/${sessionId}`, { method: 'PUT', body: JSON.stringify(data) });
 
 // ── Reports ──
 export function listReports(filters = {}) {
@@ -102,103 +62,11 @@ export function listReports(filters = {}) {
   const qs = params.toString();
   return request(`/reports${qs ? '?' + qs : ''}`);
 }
-export const getReport = (id) => request(`/reports/${id}`);
+export const submitReport = (missionId, data) =>
+  request(`/missions/${missionId}/reports`, { method: 'POST', body: JSON.stringify(data) });
 
 // ── Dashboard ──
 export const getDashboardStats = () => request('/dashboard/stats');
-
-// ── Auto-loop ──
-export const startAutoLoop = (projectId, goal) =>
-  request('/autoloop/start', { method: 'POST', body: JSON.stringify({ project_id: projectId, goal }) });
-export const stopAutoLoop = (projectId) =>
-  request(`/autoloop/stop/${projectId}`, { method: 'POST' });
-export const getAutoLoopStatus = (projectId) =>
-  request(`/autoloop/status/${projectId}`);
-
-// ── Remote Control ──
-export function streamRemoteSession(sessionId, { onText, onBackfill, onDone, onError }) {
-  const evtSource = new EventSource(`${API}/sessions/${sessionId}/remote-stream`);
-
-  evtSource.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      if (data.type === 'done') {
-        onDone?.(data);
-        evtSource.close();
-      } else if (data.type === 'backfill') {
-        onBackfill?.(data.text);
-      } else if (data.type === 'text') {
-        onText?.(data.text);
-      } else if (data.type === 'error') {
-        onError?.(data.text);
-        evtSource.close();
-      }
-    } catch (err) {
-      console.error('Remote SSE parse error:', err);
-    }
-  };
-
-  evtSource.onerror = (e) => {
-    onError?.(e);
-    evtSource.close();
-  };
-
-  return () => evtSource.close();
-}
-
-export const startRemoteControl = (sessionId) =>
-  request(`/sessions/${sessionId}/remote-control`, { method: 'POST' });
-export const takeoverSession = (sessionId) =>
-  request(`/sessions/${sessionId}/takeover`, { method: 'POST' });
-export const startMissionRemoteControl = (missionId) =>
-  request(`/missions/${missionId}/remote-control`, { method: 'POST' });
-export const stopRemoteControl = (sessionId) =>
-  request(`/sessions/${sessionId}/remote-control`, { method: 'DELETE' });
-export const getRemoteControlStatus = (sessionId) =>
-  request(`/sessions/${sessionId}/remote-control`);
-export const listRemoteControlSessions = () =>
-  request('/remote-control/sessions');
-
-// ── Config ──
-export const getModels = () => request('/config/models');
-export const getToolPresets = () => request('/config/tool-presets');
-export const getMissionTypes = () => request('/config/mission-types');
-
-// ── System Status ──
-export const getSystemStatus = () => request('/system/status');
-export const getSystemFeatures = () => request('/system/features');
-
-// ── MCP Servers ──
-export const listMcpServers = (projectId) => request(`/projects/${projectId}/mcp-servers`);
-export const addMcpServer = (projectId, data) =>
-  request(`/projects/${projectId}/mcp-servers`, { method: 'POST', body: JSON.stringify(data) });
-export const removeMcpServer = (id) => request(`/mcp-servers/${id}`, { method: 'DELETE' });
-
-// ── Status Page ──
-export const getStatusPage = (projectId) => {
-  const params = projectId ? `?project_id=${projectId}` : '';
-  return request(`/status${params}`);
-};
-export const getStatusSummary = () => request('/status/summary');
-export const listServices = (projectId) => {
-  const params = projectId ? `?project_id=${projectId}` : '';
-  return request(`/services${params}`);
-};
-export const createService = (data) => request('/services', { method: 'POST', body: JSON.stringify(data) });
-export const getServiceDetail = (id) => request(`/services/${id}`);
-export const updateService = (id, data) => request(`/services/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteService = (id) => request(`/services/${id}`, { method: 'DELETE' });
-export const getServiceChecks = (id, hours = 24) => request(`/services/${id}/checks?hours=${hours}`);
-export const listIncidents = (filters = {}) => {
-  const params = new URLSearchParams();
-  if (filters.project_id) params.set('project_id', filters.project_id);
-  if (filters.status) params.set('status', filters.status);
-  const qs = params.toString();
-  return request(`/incidents${qs ? '?' + qs : ''}`);
-};
-export const createIncident = (data) => request('/incidents', { method: 'POST', body: JSON.stringify(data) });
-export const updateIncident = (id, data) => request(`/incidents/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteIncident = (id) => request(`/incidents/${id}`, { method: 'DELETE' });
 
 // ── Project Planner ──
 export const planProject = (prompt, projectPath) => request('/plan', {

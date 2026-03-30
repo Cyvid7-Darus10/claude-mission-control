@@ -1,22 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { listReports, listProjects } from '../api/client';
 import ReportView from '../components/ReportView';
-
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  let normalized = dateStr;
-  if (!normalized.includes('T')) normalized = normalized.replace(' ', 'T');
-  if (!normalized.endsWith('Z') && !normalized.includes('+')) normalized += 'Z';
-  const ts = new Date(normalized).getTime();
-  if (isNaN(ts)) return '';
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
+import { timeAgo } from '../utils/timeAgo';
 
 export default function Reports({ navigate }) {
   const [reports, setReports] = useState([]);

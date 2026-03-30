@@ -3,7 +3,7 @@ Claude DevFleet Plugin System — Drop-in extensibility.
 
 Developers can extend DevFleet by:
 1. Dropping Python files into `plugins/` directory
-2. Each plugin registers MCP tools, hooks, or custom dispatch logic
+2. Each plugin registers lifecycle hooks
 3. Plugins are auto-loaded at startup
 
 Plugin structure:
@@ -16,18 +16,13 @@ Plugin structure:
 Each plugin must define a `register(registry)` function:
 
     def register(registry):
-        @registry.tool("my_tool", description="Does something", input_schema={...})
-        async def my_tool(args: dict) -> dict:
-            return {"result": "hello"}
-
-        @registry.hook("pre_dispatch")
-        async def before_dispatch(mission: dict, options: dict) -> dict:
-            # Modify options before dispatch
-            return options
-
         @registry.hook("post_complete")
         async def after_complete(mission: dict, report: dict):
-            # React to mission completion (e.g., notify Slack, update Jira)
+            await send_slack_message(f"Mission {mission['title']} done!")
+
+        @registry.hook("on_unblocked")
+        async def on_ready(mission: dict):
+            # React to a mission becoming ready (deps satisfied)
             pass
 """
 
@@ -37,57 +32,33 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Callable, Optional
-
-import mcp.types as types
+from typing import Callable
 
 log = logging.getLogger("devfleet.plugins")
 
 
 class PluginRegistry:
-    """Registry that plugins use to register tools, hooks, and extensions."""
+    """Registry that plugins use to register hooks and extensions."""
 
     def __init__(self):
-        self._tools: list[types.Tool] = []
-        self._tool_handlers: dict[str, Callable] = {}
         self._hooks: dict[str, list[Callable]] = {
-            "pre_dispatch": [],
             "post_complete": [],
             "post_fail": [],
             "pre_plan": [],
             "post_plan": [],
+            "on_unblocked": [],
         }
         self._loaded_plugins: list[str] = []
-
-    def tool(self, name: str, description: str, input_schema: dict):
-        """Decorator to register an MCP tool from a plugin.
-
-        Usage:
-            @registry.tool("my_tool", description="...", input_schema={...})
-            async def my_tool(args: dict) -> dict:
-                return {"result": ...}
-        """
-        def decorator(func: Callable):
-            tool_def = types.Tool(
-                name=name,
-                description=f"[Plugin] {description}",
-                inputSchema=input_schema,
-            )
-            self._tools.append(tool_def)
-            self._tool_handlers[name] = func
-            log.info(f"Plugin tool registered: {name}")
-            return func
-        return decorator
 
     def hook(self, event: str):
         """Decorator to register a lifecycle hook.
 
         Events:
-            pre_dispatch  — Before an agent is dispatched. Receives (mission, options). Return modified options.
             post_complete — After a mission completes. Receives (mission, report).
             post_fail     — After a mission fails. Receives (mission, session).
             pre_plan      — Before AI planner runs. Receives (prompt). Return modified prompt.
             post_plan     — After planner creates project. Receives (project, missions).
+            on_unblocked  — When a mission's dependencies are satisfied and it becomes ready. Receives (mission).
 
         Usage:
             @registry.hook("post_complete")
@@ -101,14 +72,6 @@ class PluginRegistry:
             log.info(f"Plugin hook registered: {event} -> {func.__name__}")
             return func
         return decorator
-
-    @property
-    def tools(self) -> list[types.Tool]:
-        return self._tools
-
-    @property
-    def tool_handlers(self) -> dict[str, Callable]:
-        return self._tool_handlers
 
     @property
     def loaded_plugins(self) -> list[str]:
@@ -180,7 +143,7 @@ def load_plugins():
         except Exception:
             log.exception(f"Failed to load plugin: {name or entry}")
 
-    log.info(f"Loaded {loaded} plugin(s), {len(registry.tools)} custom tool(s)")
+    log.info(f"Loaded {loaded} plugin(s)")
 
 
 async def run_hooks(event: str, *args, **kwargs):

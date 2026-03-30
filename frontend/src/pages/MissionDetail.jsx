@@ -1,26 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { getMission, updateMission, dispatchMission, deleteMission, generateNextMission, resumeMission, startMissionRemoteControl, stopRemoteControl, listSessions, getMissionEvents, setMissionSchedule, removeMissionSchedule, getSystemFeatures } from '../api/client';
+import { getMission, updateMission, deleteMission, generateNextMission, listSessions, getMissionEvents, setMissionSchedule, removeMissionSchedule } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 import PromptEditor from '../components/PromptEditor';
 import ReportView from '../components/ReportView';
-import DispatchPanel from '../components/DispatchPanel';
-import RemoteControlModal from '../components/RemoteControlModal';
-
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  let normalized = dateStr;
-  if (!normalized.includes('T')) normalized = normalized.replace(' ', 'T');
-  if (!normalized.endsWith('Z') && !normalized.includes('+')) normalized += 'Z';
-  const ts = new Date(normalized).getTime();
-  if (isNaN(ts)) return '';
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
+import { timeAgo } from '../utils/timeAgo';
 
 export default function MissionDetail({ id, navigate }) {
   const [mission, setMission] = useState(null);
@@ -29,16 +12,8 @@ export default function MissionDetail({ id, navigate }) {
   const [criteria, setCriteria] = useState('');
   const [title, setTitle] = useState('');
   const [error, setError] = useState(null);
-  const [dispatching, setDispatching] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [resuming, setResuming] = useState(false);
-  const [showDispatchPanel, setShowDispatchPanel] = useState(false);
-  const [remoteUrl, setRemoteUrl] = useState(null);
-  const [startingRemote, setStartingRemote] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [activeRemoteSession, setActiveRemoteSession] = useState(null);
   const [events, setEvents] = useState([]);
-  const [remoteControlEnabled, setRemoteControlEnabled] = useState(true);
 
   const load = async () => {
     try {
@@ -52,29 +27,12 @@ export default function MissionDetail({ id, navigate }) {
         const evts = await getMissionEvents(id);
         setEvents(evts || []);
       } catch {}
-      // Check for active remote sessions (status could be 'remote' or 'running' with a remote_url)
-      try {
-        const sessions = await listSessions({ mission_id: id });
-        const active = sessions.find(s =>
-          (s.status === 'remote' || (s.status === 'running' && s.remote_url)) && !s.ended_at
-        );
-        setActiveRemoteSession(active || null);
-      } catch {}
     } catch (e) {
       setError(e.message);
     }
   };
 
   useEffect(() => { load(); }, [id]);
-
-  useEffect(() => {
-    getSystemFeatures().then(features => {
-      setRemoteControlEnabled(features.remote_control);
-    }).catch(() => {
-      // Default to enabled if fetch fails
-      setRemoteControlEnabled(true);
-    });
-  }, []);
 
   const handleSave = async () => {
     try {
@@ -83,19 +41,6 @@ export default function MissionDetail({ id, navigate }) {
       load();
     } catch (e) {
       setError(e.message);
-    }
-  };
-
-  const handleDispatch = async (opts = null) => {
-    setDispatching(true);
-    setError(null);
-    setShowDispatchPanel(false);
-    try {
-      const result = await dispatchMission(id, opts);
-      navigate('live', result.session_id);
-    } catch (e) {
-      setError(e.message);
-      setDispatching(false);
     }
   };
 
@@ -108,49 +53,6 @@ export default function MissionDetail({ id, navigate }) {
     } catch (e) {
       setError(e.message);
       setGenerating(false);
-    }
-  };
-
-  const handleResume = async () => {
-    setResuming(true);
-    setError(null);
-    try {
-      const result = await resumeMission(id);
-      navigate('live', result.session_id);
-    } catch (e) {
-      setError(e.message);
-      setResuming(false);
-    }
-  };
-
-  const handleRemoteControl = async () => {
-    setStartingRemote(true);
-    setError(null);
-    try {
-      const result = await startMissionRemoteControl(id);
-      setRemoteUrl(result.url);
-      setActiveRemoteSession({ id: result.session_id, status: 'remote', remote_url: result.url });
-      load(); // refresh mission status
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setStartingRemote(false);
-    }
-  };
-
-  const handleDisconnectRemote = async () => {
-    if (!activeRemoteSession) return;
-    setDisconnecting(true);
-    setError(null);
-    try {
-      await stopRemoteControl(activeRemoteSession.id);
-      setActiveRemoteSession(null);
-      setRemoteUrl(null);
-      load(); // refresh mission status
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setDisconnecting(false);
     }
   };
 
@@ -167,7 +69,6 @@ export default function MissionDetail({ id, navigate }) {
   if (!mission) return <div className="text-muted">Loading...</div>;
 
   const canEdit = mission.status !== 'running';
-  const canDispatch = mission.status !== 'running';
 
   return (
     <div>
@@ -193,9 +94,6 @@ export default function MissionDetail({ id, navigate }) {
             <StatusBadge status={mission.status} />
             <span className="text-sm text-muted">{mission.project_name}</span>
             <span className="text-sm text-muted">{timeAgo(mission.updated_at)}</span>
-            {mission.model && mission.model !== 'claude-opus-4-6' && (
-              <span className="tag">{mission.model.replace('claude-', '').replace(/-\d+$/, '')}</span>
-            )}
             {mission.mission_type && mission.mission_type !== 'implement' && (
               <span className="tag">{mission.mission_type}</span>
             )}
@@ -211,48 +109,6 @@ export default function MissionDetail({ id, navigate }) {
               <button className="btn btn-primary" onClick={handleSave}>Save</button>
             </>
           )}
-          {canDispatch && !editing && (
-            <>
-              <button className="btn btn-success" onClick={() => setShowDispatchPanel(!showDispatchPanel)} disabled={dispatching}>
-                {dispatching ? 'Dispatching...' : 'Dispatch Agent'}
-              </button>
-              {remoteControlEnabled && (
-                <button
-                  className="btn btn-remote"
-                  onClick={handleRemoteControl}
-                  disabled={startingRemote}
-                  title="Open interactive session on phone/browser"
-                >
-                  {startingRemote ? 'Starting...' : 'Remote Control'}
-                </button>
-              )}
-            </>
-          )}
-          {activeRemoteSession && !editing && (
-            <>
-              <button
-                className="btn btn-remote"
-                onClick={() => setRemoteUrl(activeRemoteSession.remote_url)}
-                title="Show remote session QR code"
-                style={{ opacity: 0.9 }}
-              >
-                Reconnect
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={handleDisconnectRemote}
-                disabled={disconnecting}
-                title="Disconnect remote session and take back control"
-              >
-                {disconnecting ? 'Disconnecting...' : 'Disconnect Remote'}
-              </button>
-            </>
-          )}
-          {mission.status === 'failed' && !editing && (
-            <button className="btn btn-warning" onClick={handleResume} disabled={resuming}>
-              {resuming ? 'Resuming...' : 'Resume'}
-            </button>
-          )}
           {mission.status === 'completed' && mission.latest_report && !editing && (
             <button className="btn btn-primary" onClick={handleGenerateNext} disabled={generating}>
               {generating ? 'Generating...' : 'Next Mission'}
@@ -265,21 +121,6 @@ export default function MissionDetail({ id, navigate }) {
       </div>
 
       {error && <div style={{ color: 'var(--danger)', marginBottom: 16 }}>{error}</div>}
-
-      {showDispatchPanel && (
-        <DispatchPanel
-          mission={mission}
-          onDispatch={handleDispatch}
-          onCancel={() => setShowDispatchPanel(false)}
-        />
-      )}
-
-      {remoteUrl && (
-        <RemoteControlModal
-          url={remoteUrl}
-          onClose={() => setRemoteUrl(null)}
-        />
-      )}
 
       <div className="section">
         <div className="section-title">Mission Prompt</div>
@@ -468,8 +309,7 @@ export default function MissionDetail({ id, navigate }) {
             {mission.sessions.map(s => (
               <div
                 key={s.id}
-                className="card card-clickable"
-                onClick={() => s.status === 'running' ? navigate('live', s.id) : null}
+                className="card"
                 style={{ padding: '12px 16px' }}
               >
                 <div className="flex items-center justify-between">
@@ -487,13 +327,6 @@ export default function MissionDetail({ id, navigate }) {
                     )}
                   </div>
                   <div className="flex items-center gap-8">
-                    {s.remote_url && (
-                      <a href={s.remote_url} target="_blank" rel="noopener noreferrer"
-                         className="btn btn-remote btn-sm"
-                         onClick={e => e.stopPropagation()}>
-                        Remote
-                      </a>
-                    )}
                     {s.exit_code !== null && (
                       <span className="text-sm font-mono text-muted">exit {s.exit_code}</span>
                     )}

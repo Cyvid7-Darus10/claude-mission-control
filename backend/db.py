@@ -23,11 +23,6 @@ CREATE TABLE IF NOT EXISTS missions (
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
     tags TEXT DEFAULT '[]',
-    model TEXT DEFAULT 'claude-opus-4-6',
-    max_turns INTEGER,
-    max_budget_usd REAL,
-    allowed_tools TEXT DEFAULT '',
-    mission_type TEXT DEFAULT 'implement',
     parent_mission_id TEXT,
     depends_on TEXT DEFAULT '[]',
     auto_dispatch INTEGER DEFAULT 0,
@@ -49,7 +44,6 @@ CREATE TABLE IF NOT EXISTS agent_sessions (
     model TEXT DEFAULT 'claude-opus-4-6',
     token_usage TEXT DEFAULT '{}',
     claude_session_id TEXT DEFAULT '',
-    remote_url TEXT DEFAULT '',
     total_cost_usd REAL DEFAULT 0,
     total_tokens INTEGER DEFAULT 0
 );
@@ -68,54 +62,6 @@ CREATE TABLE IF NOT EXISTS reports (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS monitored_services (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    url TEXT NOT NULL,
-    group_name TEXT DEFAULT 'Default',
-    description TEXT DEFAULT '',
-    check_interval INTEGER DEFAULT 30,
-    timeout_ms INTEGER DEFAULT 5000,
-    expected_status INTEGER DEFAULT 200,
-    enabled INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS health_checks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    service_id TEXT NOT NULL REFERENCES monitored_services(id) ON DELETE CASCADE,
-    status TEXT NOT NULL,
-    response_time_ms INTEGER,
-    status_code INTEGER,
-    error_message TEXT DEFAULT '',
-    checked_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_health_checks_service_time
-    ON health_checks(service_id, checked_at DESC);
-
-CREATE TABLE IF NOT EXISTS incidents (
-    id TEXT PRIMARY KEY,
-    service_id TEXT REFERENCES monitored_services(id) ON DELETE SET NULL,
-    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    status TEXT DEFAULT 'investigating',
-    severity TEXT DEFAULT 'minor',
-    started_at TEXT DEFAULT (datetime('now')),
-    resolved_at TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS conversations (
-    session_id TEXT PRIMARY KEY REFERENCES agent_sessions(id) ON DELETE CASCADE,
-    messages_json TEXT DEFAULT '[]',
-    updated_at TEXT DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS mission_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mission_id TEXT NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
@@ -127,19 +73,6 @@ CREATE TABLE IF NOT EXISTS mission_events (
 
 CREATE INDEX IF NOT EXISTS idx_mission_events_mission
     ON mission_events(mission_id, created_at DESC);
-
-CREATE TABLE IF NOT EXISTS mcp_configs (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    server_name TEXT NOT NULL,
-    server_type TEXT DEFAULT 'stdio',
-    config_json TEXT NOT NULL DEFAULT '{}',
-    enabled INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_mcp_configs_project
-    ON mcp_configs(project_id);
 """
 
 
@@ -152,17 +85,9 @@ async def init_db():
         # Migrations for existing DBs
         migrations = [
             "ALTER TABLE agent_sessions ADD COLUMN claude_session_id TEXT DEFAULT ''",
-            "ALTER TABLE reports ADD COLUMN preview_url TEXT DEFAULT ''",
-            # v2: Claude Code power features
-            "ALTER TABLE missions ADD COLUMN model TEXT DEFAULT 'claude-opus-4-6'",
-            "ALTER TABLE missions ADD COLUMN max_turns INTEGER",
-            "ALTER TABLE missions ADD COLUMN max_budget_usd REAL",
-            "ALTER TABLE missions ADD COLUMN allowed_tools TEXT DEFAULT ''",
-            "ALTER TABLE missions ADD COLUMN mission_type TEXT DEFAULT 'implement'",
-            "ALTER TABLE agent_sessions ADD COLUMN remote_url TEXT DEFAULT ''",
             "ALTER TABLE agent_sessions ADD COLUMN total_cost_usd REAL DEFAULT 0",
             "ALTER TABLE agent_sessions ADD COLUMN total_tokens INTEGER DEFAULT 0",
-            # v3: Phase 3 — multi-agent, dependencies, scheduling
+            # Multi-agent, dependencies, scheduling
             "ALTER TABLE missions ADD COLUMN parent_mission_id TEXT",
             "ALTER TABLE missions ADD COLUMN depends_on TEXT DEFAULT '[]'",
             "ALTER TABLE missions ADD COLUMN auto_dispatch INTEGER DEFAULT 0",

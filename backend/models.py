@@ -14,33 +14,6 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
 
 
-# ── Dispatch Configuration ──
-# Controls how the Claude CLI agent is spawned per mission
-
-TOOL_PRESETS = {
-    "full": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebFetch", "WebSearch"],
-    "implement": ["Read", "Write", "Edit", "Bash", "Grep", "Glob"],
-    "review": ["Read", "Grep", "Glob", "Bash(git diff *)", "Bash(git log *)"],
-    "test": ["Read", "Edit", "Bash(npm test *)", "Bash(pytest *)", "Bash(cargo test *)", "Grep", "Glob"],
-    "explore": ["Read", "Grep", "Glob", "Bash(git *)", "Bash(ls *)", "Bash(find *)"],
-    "fix": ["Read", "Write", "Edit", "Bash", "Grep", "Glob"],
-}
-
-MODEL_CHOICES = ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
-
-
-class DispatchOptions(BaseModel):
-    """Per-dispatch overrides for Claude CLI invocation."""
-    model: Optional[str] = None              # claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5-20251001
-    max_turns: Optional[int] = None          # --max-turns N
-    max_budget_usd: Optional[float] = None   # --max-budget-usd N
-    allowed_tools: Optional[List[str]] = None # --allowedTools list (or preset name)
-    tool_preset: Optional[str] = None        # key into TOOL_PRESETS
-    append_system_prompt: Optional[str] = None  # --append-system-prompt
-    fork_session: bool = False               # --fork-session (for branching from resume)
-    context_mode: bool = False               # attach context-mode MCP server for context savings + session continuity
-
-
 class MissionCreate(BaseModel):
     project_id: str
     title: str
@@ -48,17 +21,10 @@ class MissionCreate(BaseModel):
     acceptance_criteria: str = ""
     priority: int = 0
     tags: List[str] = []
-    # Default dispatch config stored on mission
-    model: str = "claude-opus-4-6"
-    max_turns: Optional[int] = None
-    max_budget_usd: Optional[float] = None
-    allowed_tools: Optional[str] = None      # JSON string or preset name
-    mission_type: str = "implement"          # implement, review, test, explore, fix
-    # Phase 3: multi-agent, dependencies, scheduling
-    parent_mission_id: Optional[str] = None  # parent mission for sub-missions
-    depends_on: List[str] = []               # mission IDs that must complete first
-    auto_dispatch: bool = False              # auto-dispatch when dependencies met
-    schedule_cron: Optional[str] = None      # cron expression for recurring missions
+    parent_mission_id: Optional[str] = None
+    depends_on: List[str] = []
+    auto_dispatch: bool = False
+    schedule_cron: Optional[str] = None
 
 
 class MissionUpdate(BaseModel):
@@ -68,11 +34,6 @@ class MissionUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[int] = None
     tags: Optional[List[str]] = None
-    model: Optional[str] = None
-    max_turns: Optional[int] = None
-    max_budget_usd: Optional[float] = None
-    allowed_tools: Optional[str] = None
-    mission_type: Optional[str] = None
     parent_mission_id: Optional[str] = None
     depends_on: Optional[List[str]] = None
     auto_dispatch: Optional[bool] = None
@@ -80,48 +41,26 @@ class MissionUpdate(BaseModel):
     schedule_enabled: Optional[bool] = None
 
 
-class ServiceCreate(BaseModel):
-    project_id: str
-    name: str
-    url: str
-    group_name: str = "Default"
-    description: str = ""
-    check_interval: int = 30
-    timeout_ms: int = 5000
-    expected_status: int = 200
+class SessionCreate(BaseModel):
+    mission_id: str
+    model: str = "claude-opus-4-6"
+    claude_session_id: Optional[str] = None
 
 
-class ServiceUpdate(BaseModel):
-    name: Optional[str] = None
-    url: Optional[str] = None
-    group_name: Optional[str] = None
-    description: Optional[str] = None
-    check_interval: Optional[int] = None
-    timeout_ms: Optional[int] = None
-    expected_status: Optional[int] = None
-    enabled: Optional[bool] = None
-
-
-class IncidentCreate(BaseModel):
-    service_id: Optional[str] = None
-    project_id: str
-    title: str
-    description: str = ""
-    severity: str = "minor"
-
-
-class IncidentUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
+class SessionUpdate(BaseModel):
     status: Optional[str] = None
-    severity: Optional[str] = None
-    resolved_at: Optional[str] = None
+    total_cost_usd: Optional[float] = None
+    total_tokens: Optional[int] = None
+    ended_at: Optional[str] = None
 
 
-# ── MCP Server Configuration ──
-
-class McpServerCreate(BaseModel):
-    """Configure an MCP server for a project — agents get access to its tools."""
-    server_name: str                          # e.g. "github", "brave-search", "memory"
-    server_type: str = "stdio"                # stdio, sse, http
-    config: dict = {}                         # command, args, env, url, headers etc.
+class ReportCreate(BaseModel):
+    mission_id: str
+    session_id: str
+    files_changed: str = ""
+    what_done: str = ""
+    what_open: str = ""
+    what_tested: str = ""
+    what_untested: str = ""
+    next_steps: str = ""
+    errors_encountered: str = ""

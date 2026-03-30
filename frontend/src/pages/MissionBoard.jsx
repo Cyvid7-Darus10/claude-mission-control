@@ -10,7 +10,7 @@ export default function MissionBoard({ navigate }) {
   const [activeTab, setActiveTab] = useState('all');
   const [filterProject, setFilterProject] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ project_id: '', title: '', detailed_prompt: '', acceptance_criteria: '', priority: 0, tags: '', model: 'claude-opus-4-6', mission_type: 'implement', auto_dispatch: false, schedule_cron: '', depends_on: '' });
+  const [form, setForm] = useState({ project_id: '', title: '', detailed_prompt: '', acceptance_criteria: '', priority: 0, tags: '', auto_dispatch: false, schedule_cron: '', depends_on: '' });
   const [error, setError] = useState(null);
 
   const load = async () => {
@@ -52,7 +52,7 @@ export default function MissionBoard({ navigate }) {
       };
       delete payload.depends_on_text;
       await createMission(payload);
-      setForm({ project_id: '', title: '', detailed_prompt: '', acceptance_criteria: '', priority: 0, tags: '', model: 'claude-opus-4-6', mission_type: 'implement', auto_dispatch: false, schedule_cron: '', depends_on: '' });
+      setForm({ project_id: '', title: '', detailed_prompt: '', acceptance_criteria: '', priority: 0, tags: '', auto_dispatch: false, schedule_cron: '', depends_on: '' });
       setShowModal(false);
       load();
     } catch (e) {
@@ -127,27 +127,6 @@ export default function MissionBoard({ navigate }) {
               <div className="form-group">
                 <label className="form-label">Acceptance Criteria (optional)</label>
                 <textarea className="form-textarea" value={form.acceptance_criteria} onChange={e => setForm({ ...form, acceptance_criteria: e.target.value })} placeholder="- Tests pass\n- No lint errors" rows={3} />
-              </div>
-              <div className="flex gap-16">
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Model</label>
-                  <select className="form-select" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })}>
-                    <option value="claude-opus-4-6">Opus 4.6</option>
-                    <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-                    <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
-                  </select>
-                </div>
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Type</label>
-                  <select className="form-select" value={form.mission_type} onChange={e => setForm({ ...form, mission_type: e.target.value })}>
-                    <option value="full">Full Access</option>
-                    <option value="implement">Implement</option>
-                    <option value="review">Review</option>
-                    <option value="test">Test</option>
-                    <option value="explore">Explore</option>
-                    <option value="fix">Fix</option>
-                  </select>
-                </div>
               </div>
               <div className="flex gap-16">
                 <div className="form-group" style={{ flex: 1 }}>
