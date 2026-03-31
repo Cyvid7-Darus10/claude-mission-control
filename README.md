@@ -416,21 +416,21 @@ All endpoints return JSON. Dashboard endpoints require a session cookie (via acc
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/api/auth` | No | Authenticate: `{ code: "123456" }` → sets session cookie |
-| `GET` | `/api/dashboard` | Yes | Stats: agent count, mission count, events |
-| `GET` | `/api/agents` | List all agents |
-| `PATCH` | `/api/agents/:id` | Rename an agent |
-| `GET` | `/api/agents/:id/events` | Event history for an agent |
-| `GET` | `/api/missions` | List missions (optional `?status=` filter) |
-| `POST` | `/api/missions` | Create mission: `{ title, description, depends_on?, priority? }` |
-| `PATCH` | `/api/missions/:id` | Update status, assign agent, complete/fail |
-| `DELETE` | `/api/missions/:id` | Delete (queued only) |
-| `POST` | `/api/events` | Receive hook events (used by hook script) |
-| `GET` | `/api/events` | Query events (optional `?agent_id=&limit=&offset=`) |
-| `POST` | `/api/instructions` | Send instruction: `{ target_agent_id, message }` |
-| `GET` | `/api/instructions/:agentId` | Get pending instructions (used by hook script) |
-| `GET` | `/api/usage?hours=24` | Aggregated usage stats from hook events (tool calls, sessions, daily costs). `hours=0` for all time |
-| `GET` | `/api/tokens?hours=24` | Real token usage from Claude Code JSONL logs (costs, models, cache rates). `hours=0` for all time |
+| `POST` | `/api/auth` | None | Authenticate: `{ code: "123456" }` → sets session cookie |
+| `GET` | `/api/dashboard` | Cookie | Stats: agent count, mission count, events |
+| `GET` | `/api/agents` | Cookie | List all agents |
+| `PATCH` | `/api/agents/:id` | Cookie | Rename an agent |
+| `GET` | `/api/agents/:id/events` | Cookie | Event history for an agent |
+| `GET` | `/api/missions` | Cookie | List missions (optional `?status=` filter) |
+| `POST` | `/api/missions` | Cookie | Create mission: `{ title, description, depends_on?, priority? }` |
+| `PATCH` | `/api/missions/:id` | Cookie | Update status, assign agent, complete/fail |
+| `DELETE` | `/api/missions/:id` | Cookie | Delete (queued only) |
+| `POST` | `/api/events` | Hook token | Receive hook events (used by hook script) |
+| `GET` | `/api/events` | Cookie | Query events (optional `?limit=&offset=`) |
+| `POST` | `/api/instructions` | Cookie | Send instruction: `{ target_agent_id, message }` |
+| `GET` | `/api/instructions/:agentId` | Hook token | Get pending instructions (used by hook script) |
+| `GET` | `/api/usage?hours=24` | Cookie | Usage stats (tool calls, sessions, daily costs). `hours=0` for all time |
+| `GET` | `/api/tokens?hours=24` | Cookie | Real token usage from JSONL logs (costs, models, cache rates). `hours=0` for all time |
 
 WebSocket on same port — connects automatically from the dashboard.
 
