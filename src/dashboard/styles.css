@@ -213,7 +213,7 @@ html, body {
 /* ── Main grid — 2-column Palantir layout ─────────────── */
 #main-grid {
   display: grid;
-  grid-template-columns: minmax(200px, 280px) 1fr;
+  grid-template-columns: minmax(220px, 320px) 1fr;
   height: calc(100vh - 44px - 20px);
 }
 
@@ -457,13 +457,19 @@ html, body {
 }
 
 .agent-stats {
-  font-size: var(--font-size-xs);
+  font-size: 9px;
   color: var(--text-muted);
   margin-top: 1px;
   margin-left: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.agent-activity.cwd {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 /* ── Agent alerts (STUCK / LOOP) ──────────────────────── */

@@ -611,16 +611,17 @@
   function agentDisplayName(agent) {
     // Prefer server-derived name (from agent-tracker.ts)
     if (agent.name) return agent.name;
-    // If agent_id is "main", use session project or short ID
-    var aid = agent.agent_id || '';
-    if (aid === 'main') {
-      if (agent.cwd) return agent.cwd.split('/').filter(Boolean).pop() || 'main';
-      // Short session prefix instead of full UUID
-      var sid = agent.session_id || agent.id || '';
-      return sid.length > 12 ? 'Session ' + sid.slice(0, 8) : sid || 'main';
+    // Use project folder from cwd
+    if (agent.cwd) {
+      var project = agent.cwd.split('/').filter(Boolean).pop();
+      if (project) return project;
     }
-    // Subagent: agent_id is usually a UUID — show short version
-    return aid.length > 16 ? 'Sub-' + aid.slice(0, 6) : aid;
+    // Subagent with readable agent_id
+    var aid = agent.agent_id || '';
+    if (aid && aid !== 'main' && aid.length <= 16) return aid;
+    if (aid && aid !== 'main') return 'Sub-' + aid.slice(0, 8);
+    // Main agent without cwd — just show "Agent"
+    return 'Agent';
   }
 
   // Agent filter: 'all', 'active', 'idle'
@@ -706,8 +707,11 @@
     var topRow = createEl('div', { className: 'agent-row-top' }, topChildren);
     var children = [topRow];
 
+    // Show short project path (not full /Users/cyrus/...) when selected
     if (selected && agent.cwd) {
-      children.push(createEl('div', { className: 'agent-activity cwd', textContent: agent.cwd }));
+      var parts = agent.cwd.split('/').filter(Boolean);
+      var shortCwd = parts.length > 2 ? '.../' + parts.slice(-2).join('/') : agent.cwd;
+      children.push(createEl('div', { className: 'agent-activity cwd', textContent: shortCwd }));
     }
 
     // Live activity line — show current tool + target
@@ -872,9 +876,15 @@
         flatIdx++;
       }
 
-      // Session label fallback
+      // Session label — only when there's no main agent for this group
       if (!main && matchingSubs.length > 0) {
-        container.appendChild(createEl('div', { className: 'agent-group-label', textContent: 'Session ' + sid.slice(0, 8) }));
+        // Try to get project name from first sub's cwd
+        var groupLabel = 'Subagents';
+        var firstSub = matchingSubs[0];
+        if (firstSub && firstSub.cwd) {
+          groupLabel = firstSub.cwd.split('/').filter(Boolean).pop() || groupLabel;
+        }
+        container.appendChild(createEl('div', { className: 'agent-group-label', textContent: groupLabel }));
       }
 
       // Toggle click
