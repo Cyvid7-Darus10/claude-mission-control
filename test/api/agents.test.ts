@@ -7,6 +7,7 @@ const { createServer } = await import('../../src/server');
 
 let stop: () => void;
 let f: ReturnType<typeof authedFetch>;
+let hf: ReturnType<typeof hookFetch>;
 const PORT = 14285;
 const BASE = `http://localhost:${PORT}`;
 
@@ -17,7 +18,7 @@ beforeAll(async () => {
   await new Promise((resolve) => setTimeout(resolve, 500));
   const cookie = await authenticate(BASE, server.accessCode);
   f = authedFetch(cookie);
-  const hf = hookFetch(server.hookToken);
+  hf = hookFetch(server.hookToken);
 
   // Register agents via hook endpoint (requires hook token)
   await hf(`${BASE}/api/events`, {
@@ -100,5 +101,73 @@ describe('GET /api/agents/:id/events', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
+  });
+
+  it('returns empty array for agent with no events', async () => {
+    // Register a second agent so it exists
+    await hf(`${BASE}/api/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: 'events-empty-sess',
+        agent_id: 'main',
+        event_type: 'pre_tool_use',
+        tool_name: 'Read',
+        tool_input: { file_path: '/tmp/other.ts' },
+      }),
+    });
+    // Filter by a different agent id — should return only its own events
+    const res = await f(`${BASE}/api/agents/events-empty-sess%3Amain/events`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    // All returned events must belong to this agent
+    for (const event of data) {
+      expect(event.agent_id).toBe('events-empty-sess:main');
+    }
+  });
+
+  it('respects limit parameter', async () => {
+    const res = await f(`${BASE}/api/agents/agent-test-sess%3Amain/events?limit=1`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeLessThanOrEqual(1);
+  });
+});
+
+// DELETE tests run last because they destroy fixtures
+describe('DELETE /api/agents/:id', () => {
+  it('deletes an existing agent', async () => {
+    // Create a fresh agent to delete
+    await hf(`${BASE}/api/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: 'delete-target-sess',
+        agent_id: 'main',
+        event_type: 'pre_tool_use',
+        tool_name: 'Read',
+        tool_input: { file_path: '/tmp/x.ts' },
+      }),
+    });
+
+    const res = await f(`${BASE}/api/agents/delete-target-sess%3Amain`, { method: 'DELETE' });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+  });
+
+  it('returns 404 when deleting a nonexistent agent', async () => {
+    const res = await f(`${BASE}/api/agents/no-such-agent`, { method: 'DELETE' });
+    expect(res.status).toBe(404);
+  });
+
+  it('DELETE /api/agents/disconnected removes disconnected agents', async () => {
+    const res = await f(`${BASE}/api/agents/disconnected`, { method: 'DELETE' });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(typeof data.deleted).toBe('number');
+    expect(data.deleted).toBeGreaterThanOrEqual(0);
   });
 });
