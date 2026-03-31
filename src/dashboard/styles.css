@@ -717,7 +717,29 @@ html, body {
 
 .mission-footer-row {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 6px;
+}
+
+.mission-clear-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  letter-spacing: 0.3px;
+}
+
+.mission-clear-btn:hover {
+  color: var(--danger);
+}
+
+.mission-footer-sep {
+  color: var(--border-bright);
+  font-size: 9px;
 }
 
 .btn-action.danger-text:hover {
