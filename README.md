@@ -58,7 +58,7 @@ There are 20+ projects in this space. Here's why most don't solve the actual pro
 
 - **See** all agents in real-time (like claude-hud, but multi-agent + web)
 - **Talk** to agents via instruction injection (nobody else does this)
-- **Assign** missions with dependencies and status tracking
+- **Track** missions auto-created from agent activity
 - **Track** real API costs from token logs (like sniffly, built-in)
 - **Alert** on stuck agents, loops, and correction spirals
 - **Phone** companion — monitor from your phone on the same WiFi
@@ -201,38 +201,32 @@ Each agent row shows rich, at-a-glance status:
 
 ### Mission Board
 
-**Zero setup required.** Missions auto-create from agent activity — you never have to manually add them.
-
-When a Claude Code agent starts working, Mission Control automatically creates a mission for it:
+**Zero setup required.** Missions auto-create when agents spawn subagents with meaningful descriptions.
 
 ```
-Agent starts editing src/auth.ts in /projects/my-app
-    → Mission created: "my-app — auth.ts"
-    → Status: ACTIVE (assigned to agent)
+Agent spawns subagent: "Security review of auth module"
+    → Mission created: "Security review of auth module"
+    → Status: ACTIVE (assigned to subagent)
 
-Agent spawns a subagent with description "Fix build errors"
-    → Mission created: "Fix build errors"
+Agent spawns subagent: "Write unit tests for routes"
+    → Mission created: "Write unit tests for routes"
     → Status: ACTIVE (assigned to subagent)
 
 Agent session ends (Stop hook fires)
     → Mission auto-completed ✓
 ```
 
-| Auto-Mission Source | Example Title |
-|---|---|
-| Main agent's first tool call | `my-app — server.ts` (project folder + file) |
-| Subagent with description | `Fix build errors`, `Code review` |
-| Subagent with prompt | `Research JWT best practices...` |
-
-**Managing missions:**
+Missions only create from **subagent descriptions** — not from individual tool calls like `Read` or `Bash`. This keeps the board clean and meaningful.
 
 | Feature | Description |
 |---------|-------------|
-| **Auto-populated** | Missions appear as agents start working — no manual creation needed |
-| **Live lifecycle** | `○ active` (agent working) → `✓ completed` (session ended) — automatic |
-| **Click to expand** | Shows action buttons: DONE, REOPEN, DELETE |
-| **CLEAR COMPLETED** | One-click bulk cleanup of finished missions |
-| **Manual creation** | Press `n` to add your own missions if needed |
+| **Auto-populated** | Missions appear when subagents spawn with descriptions |
+| **Deduplicated** | Same title never creates duplicate missions |
+| **Auto-completed** | When an agent's session ends, its mission is marked done |
+| **Click to expand** | Shows assigned agent, path, model, current activity, timestamps |
+| **Agent highlighting** | Click an agent to highlight its linked missions |
+| **Cleanup** | `clear done` and `clear all` links for bulk removal |
+| **Clear old agents** | Remove disconnected agents with one click |
 
 ### Sending Instructions to Agents
 
@@ -341,7 +335,7 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 | Feature | Description |
 |---------|-------------|
 | **Access Code** | Random 6-digit code generated on each server start. Required to view the dashboard. Shown only in the terminal |
-| **Session Cookies** | `HttpOnly`, `SameSite=Strict`, 24-hour expiry. No passwords stored |
+| **Session Cookies** | `HttpOnly`, `SameSite=Lax`, 24-hour expiry. No passwords stored |
 | **WebSocket Auth** | WebSocket connections also require a valid session cookie |
 | **Login Page** | Clean login screen at `/login` — auto-submits when 6 digits entered |
 
@@ -386,7 +380,6 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 | `Tab` | Cycle focus: Agents → Missions → Usage → Timeline |
 | `j` / `k` | Navigate up/down in focused panel |
 | `Enter` | Select agent (filters timeline + shows agent usage) |
-| `n` | New mission |
 | `i` | Focus instruction input |
 | `/` | Clear timeline filter |
 | `s` | Toggle security panel |
@@ -404,14 +397,16 @@ Hover any agent row to reveal action buttons:
 
 ### Mission Management
 
-Missions auto-create from agent activity. Click any mission to expand and manage:
+Missions auto-create from subagent descriptions. Click any mission to see details (agent, path, model, activity) and manage:
 
 | Action | Description |
 |--------|-------------|
 | **DONE** | Mark a mission as completed |
 | **REOPEN** | Move a completed mission back to open |
 | **DELETE** | Remove a mission |
-| **CLEAR COMPLETED** | Bulk-remove all finished missions |
+| **clear done** | Bulk-remove completed missions |
+| **clear all** | Remove all missions |
+| **clear old** (agents) | Remove all disconnected agents |
 
 ---
 
@@ -450,6 +445,8 @@ All endpoints return JSON. Dashboard endpoints require a session cookie (via acc
 | `GET` | `/api/dashboard` | Cookie | Stats: agent count, mission count, events |
 | `GET` | `/api/agents` | Cookie | List all agents |
 | `PATCH` | `/api/agents/:id` | Cookie | Rename an agent |
+| `DELETE` | `/api/agents/:id` | Cookie | Delete an agent |
+| `DELETE` | `/api/agents/disconnected` | Cookie | Bulk-delete all disconnected agents |
 | `GET` | `/api/agents/:id/events` | Cookie | Event history for an agent |
 | `GET` | `/api/missions` | Cookie | List missions (optional `?status=` filter) |
 | `POST` | `/api/missions` | Cookie | Create mission: `{ title, description, depends_on?, priority? }` |
@@ -474,25 +471,6 @@ WebSocket on same port — connects automatically from the dashboard.
 | `MC_COST_PER_TOOL_CALL` | `0.003` | Fallback cost estimate per tool call (used when JSONL logs unavailable) |
 | `MC_DATA_DIR` | `~/.claude-mission-control` | Database storage directory |
 | `CLAUDE_MC_PORT` | `4280` | Port for the hook script to POST events to |
-
----
-
-## Design
-
-Dark, data-dense, built for readability at a glance.
-
-| Element | Value |
-|---------|-------|
-| Background | `#0a0a0c` |
-| Panels | `#161619` |
-| Borders | `#252528` |
-| Text | `#c8c8cc` |
-| Success | `#4ade80` |
-| Warning | `#eab308` |
-| Danger | `#ef4444` |
-| Fonts | JetBrains Mono (code) + system sans-serif (titles) |
-
-No rounded corners. No shadows. No gradients. Sub-100ms renders.
 
 ---
 
