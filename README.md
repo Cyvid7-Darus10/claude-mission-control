@@ -352,7 +352,7 @@ WebSocket on same port — connects automatically from the dashboard.
 
 ## Design
 
-Palantir Gotham-inspired. Dark grid layout, data-dense, neutral grays, no blue tint.
+Dark, data-dense, built for readability at a glance.
 
 | Element | Value |
 |---------|-------|
@@ -408,7 +408,7 @@ Inspired by:
 - [agenttop](https://github.com/vicarious11/agenttop) — anti-pattern detection (correction spirals, marathon sessions, error bursts)
 - [MeisnerDan/mission-control](https://github.com/MeisnerDan/mission-control) — subtask progress tracking
 - [claude_code_agent_farm](https://github.com/Dicklesworthstone/claude_code_agent_farm) — file activity tracking per agent
-- [claude-devfleet](https://github.com/LEC-AI/claude-devfleet), [agent-flow](https://github.com/patoles/agent-flow), [Palantir Gotham](https://www.palantir.com/platforms/gotham/)
+- [claude-devfleet](https://github.com/LEC-AI/claude-devfleet), [agent-flow](https://github.com/patoles/agent-flow)
 
 ## License
 
