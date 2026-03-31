@@ -220,23 +220,32 @@ You can send messages from the dashboard to any running Claude Code agent. The a
 
 **How delivery works:**
 
-```
-You type: "Focus on writing tests, not refactoring"
-    │
-    ▼
-Stored in database (status: PENDING)
-    │
-    ▼
-Agent makes its next tool call (Edit, Bash, Read, etc.)
-    │
-    ▼
-PreToolUse hook fires → fetches pending instructions
-    │
-    ▼
-Hook writes to stderr: "[Mission Control] Focus on writing tests, not refactoring"
-    │
-    ▼
-Claude Code sees the warning and adjusts its behavior
+```mermaid
+sequenceDiagram
+    participant You as 👤 You (Dashboard)
+    participant DB as 💾 Server / DB
+    participant Hook as 🪝 Hook Script
+    participant Agent as 🤖 Claude Code Agent
+
+    You->>DB: POST /api/instructions<br/>"Focus on writing tests"
+    Note over DB: Status: PENDING<br/>○ pending...
+
+    DB-->>You: WebSocket: instruction:new
+    Note over You: Dashboard shows<br/>○ pending...
+
+    Agent->>Agent: Makes next tool call<br/>(Edit, Bash, Read, etc.)
+    Agent->>Hook: PreToolUse hook fires
+
+    Hook->>DB: GET /api/instructions/:agentId
+    DB-->>Hook: Returns pending instructions
+    Note over DB: Status: DELIVERED
+
+    Hook->>Agent: Writes to stderr:<br/>"[Mission Control] Focus on writing tests"
+
+    DB-->>You: WebSocket: instruction:delivered
+    Note over You: Dashboard shows<br/>✓ delivered + toast
+
+    Agent->>Agent: Sees warning, adjusts behavior
 ```
 
 **How to know it was received:**
