@@ -11,10 +11,28 @@ const agentMissionCreated = new Set<string>();
 
 /**
  * Auto-create a mission from agent activity.
- * - SubagentStart: uses the description field
- * - Main agent first tool call: derives from cwd + tool
+ * - SubagentStart: uses the description field (if it looks like a real task)
  * - Stop: marks the agent's mission as completed
  */
+
+/** Returns true if text looks like a command, path, URL, or other junk — not a mission title. */
+function looksLikeJunk(text: string): boolean {
+  const t = text.toLowerCase();
+  // Starts with a shell command
+  if (/^(curl|ls|cat|rm|cd|cp|mv|git|npm|npx|node|python|pip|docker|ssh|wget|grep|find|mkdir|chmod|kill|lsof|echo|sed|awk)\s/.test(t)) return true;
+  // Contains path separators, pipes, redirects
+  if (t.includes('|') || t.includes('>') || t.includes('2>/dev/null')) return true;
+  // Starts with a path
+  if (t.startsWith('/') || t.startsWith('~/') || t.startsWith('./')) return true;
+  // Contains URLs
+  if (t.includes('http://') || t.includes('https://')) return true;
+  // Contains file extensions suggesting it's a file path
+  if (/\.(ts|js|json|md|css|html|py|go|rs|sh|yml|yaml|toml)\b/.test(t) && t.includes('/')) return true;
+  // Looks like "project — command" pattern
+  if (/\s—\s/.test(text) && looksLikeJunk(text.split('—')[1]?.trim() || '')) return true;
+  return false;
+}
+
 function autoMission(
   compositeId: string,
   eventType: string,
@@ -66,17 +84,17 @@ function autoMission(
       } else if (toolInput && typeof toolInput === 'object') {
         input = toolInput as Record<string, unknown>;
       }
+      // Extract candidate title from description or prompt
+      var candidate = '';
       if (typeof input.description === 'string' && input.description.length > 0) {
-        title = input.description;
+        candidate = input.description.trim();
+      } else if (typeof input.prompt === 'string' && input.prompt.length > 0) {
+        candidate = input.prompt.trim();
       }
-      // Only use prompt if it looks like a human sentence, not a command/path
-      if (!title && typeof input.prompt === 'string' && input.prompt.length > 0) {
-        const p = input.prompt.trim();
-        // Skip if it looks like a command, path, or URL
-        const looksLikeCommand = /^[a-z]+\s+[\-\/]/.test(p) || p.startsWith('/') || p.startsWith('http') || p.includes('|') || p.includes('>');
-        if (!looksLikeCommand && p.length >= 10) {
-          title = p.length > 80 ? p.slice(0, 77) + '...' : p;
-        }
+
+      // Filter out titles that look like commands, paths, or junk
+      if (candidate.length >= 10 && !looksLikeJunk(candidate)) {
+        title = candidate.length > 80 ? candidate.slice(0, 77) + '...' : candidate;
       }
     }
 
