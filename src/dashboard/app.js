@@ -491,6 +491,9 @@
       case 'agents':
         state.agents = msg.data || [];
         renderAgents();
+        // Force mobile layout refresh — on some mobile browsers the panel
+        // doesn't repaint after WebSocket data arrives during initial load
+        if (isMobile()) { setMobileTab(mobileActiveTab); }
         break;
       case 'events':
         state.events = msg.data || [];
@@ -552,6 +555,7 @@
           state.agents = agents;
           renderAgents();
           updateHeaderStats();
+          if (isMobile()) { setMobileTab(mobileActiveTab); }
         }
       })
       .catch(function () {});
