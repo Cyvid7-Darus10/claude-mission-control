@@ -201,20 +201,38 @@ Each agent row shows rich, at-a-glance status:
 
 ### Mission Board
 
-Missions are **auto-created** from agent activity — you don't need to set them up manually.
+**Zero setup required.** Missions auto-create from agent activity — you never have to manually add them.
 
-| Source | How It Creates a Mission |
-|--------|------------------------|
-| **Subagent spawn** | Uses the `description` from the Agent tool (e.g. "Fix build errors", "Code review") |
-| **Main agent first tool call** | Derives from project folder + first action (e.g. "mission-control — server.ts") |
-| **Session end (Stop)** | Auto-completes the agent's active mission |
+When a Claude Code agent starts working, Mission Control automatically creates a mission for it:
+
+```
+Agent starts editing src/auth.ts in /projects/my-app
+    → Mission created: "my-app — auth.ts"
+    → Status: ACTIVE (assigned to agent)
+
+Agent spawns a subagent with description "Fix build errors"
+    → Mission created: "Fix build errors"
+    → Status: ACTIVE (assigned to subagent)
+
+Agent session ends (Stop hook fires)
+    → Mission auto-completed ✓
+```
+
+| Auto-Mission Source | Example Title |
+|---|---|
+| Main agent's first tool call | `my-app — server.ts` (project folder + file) |
+| Subagent with description | `Fix build errors`, `Code review` |
+| Subagent with prompt | `Research JWT best practices...` |
+
+**Managing missions:**
 
 | Feature | Description |
 |---------|-------------|
 | **Auto-populated** | Missions appear as agents start working — no manual creation needed |
-| **Live status** | Active (agent working) → Completed (session ended) with timestamps |
-| **Click to expand** | Shows description and action buttons (DONE, DELETE) |
-| **CLEAR COMPLETED** | Bulk-remove finished missions to keep the board clean |
+| **Live lifecycle** | `○ active` (agent working) → `✓ completed` (session ended) — automatic |
+| **Click to expand** | Shows action buttons: DONE, REOPEN, DELETE |
+| **CLEAR COMPLETED** | One-click bulk cleanup of finished missions |
+| **Manual creation** | Press `n` to add your own missions if needed |
 
 ### Sending Instructions to Agents
 
