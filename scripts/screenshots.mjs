@@ -6,12 +6,17 @@
  */
 
 import puppeteer from 'puppeteer';
-import { mkdirSync } from 'fs';
+import { mkdirSync, mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 const PORT = 19380;
 const BASE = `http://localhost:${PORT}`;
 const OUT = new URL('../docs/screenshots/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
+
+// Use a fresh temp database so screenshots have clean data
+process.env.MC_DATA_DIR = mkdtempSync(join(tmpdir(), 'mc-screenshots-'));
 
 // Start server
 const { createServer } = await import('../dist/server.js');
@@ -49,61 +54,76 @@ const cookieVal = cookie.split('=')[1];
 console.log('Auth:', cookie ? 'OK' : 'FAILED');
 
 // ── Seed data ───────────────────────────────────────────
+// Each session gets ONE initial event (triggers auto-mission) then a few follow-ups.
+// No manual mission creation — auto-missions handle it.
 
-const sessions = [
-  { sid: 'sess-alpha', cwd: '/Users/cyrus/project/mission-control', tools: ['Edit', 'Bash', 'Read', 'Write'] },
-  { sid: 'sess-bravo', cwd: '/Users/cyrus/project/api-service', tools: ['Bash', 'Grep', 'Edit'] },
-  { sid: 'sess-charlie', cwd: '/Users/cyrus/project/web-frontend', tools: ['Read', 'Glob', 'Edit'] },
-];
+// 3 main agents in different projects
+await hookPost('/api/events', {
+  session_id: 'sess-alpha', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Edit', tool_input: { file_path: '/projects/mission-control/src/server.ts' },
+  cwd: '/projects/mission-control',
+});
+await hookPost('/api/events', {
+  session_id: 'sess-alpha', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Bash', tool_input: { command: 'npm test --coverage' },
+  cwd: '/projects/mission-control',
+});
 
-const files = ['src/server.ts', 'src/db.ts', 'src/api/events.ts', 'package.json', 'src/index.ts', 'test/db.test.ts', 'src/dashboard/app.js', 'src/hook/hook.js'];
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Edit', tool_input: { file_path: '/projects/api-service/src/routes/auth.ts' },
+  cwd: '/projects/api-service',
+});
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Read', tool_input: { file_path: '/projects/api-service/package.json' },
+  cwd: '/projects/api-service',
+});
 
-// Main agents + subagents
-for (const s of sessions) {
-  for (let i = 0; i < 5; i++) {
-    const tool = s.tools[i % s.tools.length];
-    const file = files[Math.floor(Math.random() * files.length)];
-    await hookPost('/api/events', {
-      session_id: s.sid, agent_id: 'main', event_type: 'pre_tool_use',
-      tool_name: tool,
-      tool_input: tool === 'Bash' ? { command: 'npm run build && npm test' } : { file_path: s.cwd + '/' + file },
-      cwd: s.cwd,
-    });
-    await new Promise(r => setTimeout(r, 30));
-  }
-}
+await hookPost('/api/events', {
+  session_id: 'sess-charlie', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Bash', tool_input: { command: 'npx playwright test' },
+  cwd: '/projects/web-frontend',
+});
 
-// Subagents for alpha
-for (const subId of ['sub-build-fix', 'sub-code-review']) {
-  for (let i = 0; i < 3; i++) {
-    await hookPost('/api/events', {
-      session_id: 'sess-alpha', agent_id: subId, event_type: 'pre_tool_use',
-      tool_name: i === 0 ? 'Read' : 'Edit',
-      tool_input: { file_path: '/Users/cyrus/project/mission-control/src/' + files[i] },
-    });
-    await new Promise(r => setTimeout(r, 30));
-  }
-}
+// 2 subagents with descriptive names
+await hookPost('/api/events', {
+  session_id: 'sess-alpha', agent_id: 'sub-security-review', event_type: 'subagent_start',
+  tool_name: 'Agent', tool_input: { description: 'Security review of auth module' },
+});
+await hookPost('/api/events', {
+  session_id: 'sess-alpha', agent_id: 'sub-security-review', event_type: 'pre_tool_use',
+  tool_name: 'Grep', tool_input: { pattern: 'API_KEY|SECRET' },
+});
 
-// Missions
-const m1 = await authedReq('POST', '/api/missions', { title: 'Auth middleware', description: 'Implement JWT authentication for all API routes', priority: 8 }, cookie).then(r => r.json());
-const m2 = await authedReq('POST', '/api/missions', { title: 'REST API routes', description: 'Build CRUD endpoints for missions and agents' }, cookie).then(r => r.json());
-const m3 = await authedReq('POST', '/api/missions', { title: 'Unit tests', description: '80%+ coverage with vitest', priority: 5 }, cookie).then(r => r.json());
-const m4 = await authedReq('POST', '/api/missions', { title: 'E2E tests', description: 'Playwright end-to-end tests', depends_on: [m2.id] }, cookie).then(r => r.json());
-const m5 = await authedReq('POST', '/api/missions', { title: 'Dashboard polish', description: 'Palantir styling and mobile responsive' }, cookie).then(r => r.json());
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'sub-test-writer', event_type: 'subagent_start',
+  tool_name: 'Agent', tool_input: { description: 'Write unit tests for routes' },
+});
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'sub-test-writer', event_type: 'pre_tool_use',
+  tool_name: 'Write', tool_input: { file_path: '/projects/api-service/test/auth.test.ts' },
+});
 
-await authedReq('PATCH', `/api/missions/${m1.id}`, { status: 'active', assigned_agent_id: 'sess-alpha:main' }, cookie);
-await authedReq('PATCH', `/api/missions/${m2.id}`, { status: 'active', assigned_agent_id: 'sess-bravo:main' }, cookie);
-await authedReq('PATCH', `/api/missions/${m3.id}`, { status: 'completed', result: 'All 107 tests passing' }, cookie);
+// Complete one agent's session to show a completed mission
+await hookPost('/api/events', {
+  session_id: 'sess-charlie', agent_id: 'main', event_type: 'stop',
+  cwd: '/projects/web-frontend',
+});
 
-// Instruction
-await authedReq('POST', '/api/instructions', { target_agent_id: 'sess-alpha:main', message: 'Focus on JWT validation, skip OAuth for now' }, cookie);
+// Instruction to show in the instruct panel
+await authedReq('POST', '/api/instructions', {
+  target_agent_id: 'sess-alpha:main',
+  message: 'Focus on JWT validation, skip OAuth for now',
+}, cookie);
 
-// Trigger a security event (sensitive file access)
+// Trigger a security event
 await hookPost('/api/events', {
   session_id: 'sess-charlie', agent_id: 'main', event_type: 'pre_tool_use',
   tool_name: 'Read', tool_input: { file_path: '/Users/cyrus/.env.local' },
 });
+
+await new Promise(r => setTimeout(r, 200));
 
 console.log('Data seeded.');
 await new Promise(r => setTimeout(r, 500));
