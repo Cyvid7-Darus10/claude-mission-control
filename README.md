@@ -41,6 +41,29 @@ You're paying for AI agents but managing them like it's 1995 — staring at term
 | Problems discovered too late | Instant alerts: STUCK, LOOP, SPIRAL, ERRORS |
 | Desktop only | Phone companion — monitor from anywhere on WiFi |
 
+## Why not the others?
+
+There are 20+ projects in this space. Here's why most don't solve the actual problem:
+
+| Tool | What it does | What's missing |
+|------|-------------|----------------|
+| [claude-hud](https://github.com/jarrodwatts/claude-hud) (15k stars) | Terminal statusline for one agent | Single-agent only. No missions. No instructions. No web UI. |
+| [claude-squad](https://github.com/smtg-ai/claude-squad) (6.7k stars) | TUI to manage agents in tmux | No web dashboard. No cost tracking. No mobile. Can't send instructions. |
+| [disler/observability](https://github.com/disler/claude-code-hooks-multi-agent-observability) (1.3k stars) | Real-time event timeline | Read-only. Can't assign missions or talk to agents. |
+| [builderz-labs/mission-control](https://github.com/builderz-labs/mission-control) (3.6k stars) | Enterprise 40-panel orchestration | Massive. Next.js + React + Zustand + Recharts. 39 migrations. Overkill for most. |
+| [sniffly](https://github.com/chiphuyen/sniffly) (1.2k stars) | Cost analytics from JSONL logs | Analytics only. No live monitoring. No agent control. Python. |
+
+**Mission Control is the only tool that combines all of these:**
+
+- **See** all agents in real-time (like claude-hud, but multi-agent + web)
+- **Talk** to agents via instruction injection (nobody else does this)
+- **Assign** missions with dependencies and status tracking
+- **Track** real API costs from token logs (like sniffly, built-in)
+- **Alert** on stuck agents, loops, and correction spirals
+- **Phone** companion — monitor from your phone on the same WiFi
+
+And it's **2 dependencies** (`better-sqlite3` + `ws`). No React. No build step. One command to start.
+
 <div align="center">
 <img src="docs/tapes/setup.gif" alt="Mission Control setup demo" width="700">
 <br>
