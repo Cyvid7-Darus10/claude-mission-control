@@ -63,6 +63,13 @@
 
   function trackAgentActivity(evt) {
     var aid = evt.agent_id || 'unknown';
+
+    // Clear tracking on session end — prevents stale LOOP/STUCK badges
+    if (evt.event_type === 'stop' || evt.event_type === 'Stop') {
+      clearAgentTracking(aid);
+      return;
+    }
+
     agentLastSeen[aid] = Date.now();
 
     if (evt.tool_name) {
@@ -123,6 +130,13 @@
 
   function getAgentCurrentActivity(agentId) {
     return agentCurrentTool[agentId] || null;
+  }
+
+  // Clear tracking data when a session ends — prevents stale LOOP/STUCK alerts
+  function clearAgentTracking(agentId) {
+    delete agentRecentTools[agentId];
+    delete agentCurrentTool[agentId];
+    delete agentLastSeen[agentId];
   }
 
   function isAgentStuck(agentId) {
@@ -509,6 +523,10 @@
         break;
       case 'agent:update':
       case 'agent_update':
+        // Clear stale alerts when agent disconnects
+        if (msg.data && msg.data.status === 'disconnected') {
+          clearAgentTracking(msg.data.id);
+        }
         upsertAgent(msg.data);
         renderAgents();
         break;
