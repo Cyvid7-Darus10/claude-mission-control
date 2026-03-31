@@ -10,7 +10,7 @@
 
 See what your Claude Code agents are doing. Assign missions. Watch them work. Step in when needed.
 
-Palantir-inspired dark UI. Only 2 dependencies. No React, no Python, no Docker.
+Palantir Gotham-inspired dark UI. Access-code protected. Mobile responsive. Only 2 dependencies.
 
 </div>
 
@@ -25,25 +25,25 @@ You're running multiple Claude Code agents — maybe one building auth, another 
 Mission Control connects to Claude Code via hooks. Every tool call, file edit, and bash command is streamed to a web dashboard in real-time. You see all agents at a glance, assign missions, track dependencies, and send instructions.
 
 ```
-┌─ MISSION CONTROL ──────────────────────────── 3 agents ● 5 missions ─┐
+┌─ { SENTINEL } ──────────────── 3 Agents | 5 Missions | 142 Events ──┐
 ├──────────────┬───────────────────────────────────────────────────────-─┤
-│ > AGENTS     │ > MISSIONS                                             │
+│ ▸ AGENTS     │ ▸ MISSIONS                                             │
 │              │                                                        │
-│ ● alpha      │ [QUEUED]  Auth middleware         priority: HIGH        │
-│   editing    │ [ACTIVE]  API routes        ← alpha  02:34 elapsed     │
-│   auth.ts    │ [ACTIVE]  Unit tests        ← bravo  01:12 elapsed     │
-│              │ [DONE]    Project setup      completed 5m ago           │
-│ ● bravo      │ [BLOCKED] E2E tests         waiting on: API routes     │
+│ ● alpha      │ [ACTIVE]  API routes        ← alpha  02:34 elapsed     │
+│   editing    │ [ACTIVE]  Unit tests        ← bravo  01:12 elapsed     │
+│   auth.ts    │ [DONE]    Project setup      completed 5m ago           │
+│   ├─ Sub-a1  │ [BLOCKED] E2E tests         waiting on: API routes     │
+│   └─ Sub-a2  │                                                        │
+│              │──────────────────────────────────────────────────────── │
+│ ● bravo      │ ▸ TIMELINE                                             │
 │   running    │                                                        │
-│   npm test   │────────────────────────────────────────────────────────│
-│              │ > TIMELINE                                              │
-│ ○ charlie    │                                                        │
-│   idle 45s   │ 12:34:02 alpha  EDIT  src/middleware/auth.ts            │
+│   npm test   │ 12:34:02 alpha  EDIT  src/middleware/auth.ts            │
 │              │ 12:34:01 bravo  BASH  npm test --coverage               │
-│──────────────│ 12:33:58 alpha  READ  package.json                     │
-│ > SEND MSG   │ 12:33:55 alpha  BASH  git status                       │
-│ to: alpha    │ 12:33:50 charlie READ src/routes/payments.ts           │
-│ > _          │ 12:33:48 alpha  WRITE src/types/auth.d.ts              │
+│ ○ charlie    │ 12:33:58 alpha  READ  package.json                     │
+│   idle 45s   │ 12:33:55 alpha  BASH  git status                       │
+│──────────────│ 12:33:50 charlie READ src/routes/payments.ts           │
+│ ▸ INSTRUCT   │ 12:33:48 alpha  WRITE src/types/auth.d.ts              │
+│ >_ Focus JWT │                                                        │
 └──────────────┴────────────────────────────────────────────────────────┘
 ```
 
@@ -231,13 +231,35 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 
 ### Security
 
+**Access control:**
+
 | Feature | Description |
 |---------|-------------|
-| **Secret Scanner** | Scans every tool output for leaked secrets — 10 patterns: AWS keys, GitHub tokens, Anthropic/OpenAI keys, Stripe, Slack, private keys, JWTs, generic API keys. Shows toast alert on detection |
-| **Origin Validation** | Only localhost connections accepted — no remote access |
-| **Path Traversal Guard** | Dashboard file serving prevents directory escape |
-| **Payload Limits** | Request body capped at 1MB, field lengths enforced |
-| **Visibility-Aware Polling** | Dashboard pauses all polling when the browser tab is hidden, refreshes immediately on return — saves CPU and network |
+| **Access Code** | Random 6-digit code generated on each server start. Required to view the dashboard. Shown only in the terminal |
+| **Session Cookies** | `HttpOnly`, `SameSite=Strict`, 24-hour expiry. No passwords stored |
+| **WebSocket Auth** | WebSocket connections also require a valid session cookie |
+| **Login Page** | Clean login screen at `/login` — auto-submits when 6 digits entered |
+
+**7-layer defense system** (visible in the Security panel — click the shield icon):
+
+| Layer | Name | What It Blocks |
+|-------|------|---------------|
+| L1 | **Origin Gate** | HTTP requests from unauthorized origins |
+| L2 | **Path Guard** | Path traversal attempts (`../`) |
+| L3 | **WS Verify** | WebSocket connections from unauthorized origins |
+| L4 | **Conn Limit** | More than 50 simultaneous WebSocket clients |
+| L5 | **Payload Size** | Request bodies exceeding 1MB |
+| L6 | **Field Limit** | Oversized fields (title, description, tool I/O) |
+| L7 | **Tool Scan** | Dangerous commands (`rm -rf /`, `chmod 777`, `curl \| sh`), sensitive file access (`.env`, `.ssh/`, credentials), secret exposure (API keys, private keys) |
+
+**Additional protections:**
+
+| Feature | Description |
+|---------|-------------|
+| **Secret Scanner** | Scans tool output for leaked secrets — AWS keys, GitHub tokens, API keys, JWTs, private keys |
+| **Network Access** | Accepts connections from localhost and private network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x) |
+| **Hook Bypass** | `POST /api/events` (hook endpoint) is exempt from auth — hooks don't have browser cookies |
+| **Failed Auth Logging** | Invalid access code attempts are logged as security events |
 
 ### Keyboard Shortcuts
 
@@ -280,11 +302,12 @@ npx tsx src/index.ts uninstall    # Remove hooks from Claude Code
 
 ## API
 
-All endpoints return JSON.
+All endpoints return JSON. Most require authentication (valid session cookie). Exceptions: `POST /api/auth`, `POST /api/events`, `GET /api/instructions/:agentId`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/dashboard` | Stats: agent count, mission count, events |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/auth` | No | Authenticate: `{ code: "123456" }` → sets session cookie |
+| `GET` | `/api/dashboard` | Yes | Stats: agent count, mission count, events |
 | `GET` | `/api/agents` | List all agents |
 | `PATCH` | `/api/agents/:id` | Rename an agent |
 | `GET` | `/api/agents/:id/events` | Event history for an agent |

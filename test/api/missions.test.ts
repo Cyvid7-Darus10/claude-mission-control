@@ -98,7 +98,7 @@ describe('GET /api/missions', () => {
   });
 
   it('filters by status', async () => {
-    const res = await fetch(`${BASE}/api/missions?status=queued`);
+    const res = await f(`${BASE}/api/missions?status=queued`);
     const data = await res.json();
     expect(data.every((m: any) => m.status === 'queued')).toBe(true);
   });
@@ -163,7 +163,7 @@ describe('DELETE /api/missions/:id', () => {
   });
 
   it('returns 404 for nonexistent mission', async () => {
-    const res = await fetch(`${BASE}/api/missions/nonexistent`, { method: 'DELETE' });
+    const res = await f(`${BASE}/api/missions/nonexistent`, { method: 'DELETE' });
     expect(res.status).toBe(404);
   });
 });
