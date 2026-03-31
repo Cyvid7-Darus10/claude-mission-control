@@ -39,6 +39,16 @@ function autoMission(
     // Don't create duplicate missions for the same agent
     if (agentMissionCreated.has(compositeId)) return;
 
+    // Also check DB — handles server restarts where in-memory set is empty
+    const existingMissions = getMissions();
+    const hasActiveMission = existingMissions.some(
+      (m) => m.assigned_agent_id === compositeId && (m.status === 'active' || m.status === 'queued')
+    );
+    if (hasActiveMission) {
+      agentMissionCreated.add(compositeId); // sync in-memory with DB
+      return;
+    }
+
     let title: string | null = null;
 
     // SubagentStart: use description
@@ -84,10 +94,19 @@ function autoMission(
 
     if (!title) return;
 
-    agentMissionCreated.add(compositeId);
-
     // Cap title length
     if (title.length > 100) title = title.slice(0, 97) + '...';
+
+    // Deduplicate by title — don't create "Auth middleware" if one already exists
+    const titleExists = existingMissions.some(
+      (m) => m.title === title && (m.status === 'active' || m.status === 'queued')
+    );
+    if (titleExists) {
+      agentMissionCreated.add(compositeId);
+      return;
+    }
+
+    agentMissionCreated.add(compositeId);
 
     const mission = engineCreateMission({
       id: crypto.randomUUID(),

@@ -627,19 +627,46 @@ html, body {
   padding-left: 10px;
 }
 
+.mission-expanded {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
 .mission-desc {
   font-size: var(--font-size-xs);
   color: var(--text-secondary);
-  margin-top: 4px;
-  padding: 4px 0;
+  padding: 2px 0 6px;
   line-height: 1.5;
 }
 
-.mission-result {
+.mission-agent-info {
+  font-size: var(--font-size-xs);
+  padding: 4px 0;
+  line-height: 1.8;
+}
+
+.mission-info-label {
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+
+.mission-info-value {
+  color: var(--text-primary);
+}
+
+.mission-info-value.mono {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.mission-timestamps {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
-  margin-top: 2px;
-  font-style: italic;
+  padding: 4px 0;
+  display: flex;
+  gap: 12px;
 }
 
 /* ── Goal checklist style ──────────────────────────────── */
