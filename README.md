@@ -26,28 +26,11 @@ You're running multiple Claude Code agents — maybe one building auth, another 
 
 Mission Control connects to Claude Code via hooks. Every tool call, file edit, and bash command is streamed to a web dashboard in real-time. You see all agents at a glance, assign missions, track dependencies, and send instructions.
 
-```
-┌─ { SENTINEL } ──────────────── 3 Agents | 5 Missions | 142 Events ──┐
-├──────────────┬───────────────────────────────────────────────────────-─┤
-│ ▸ AGENTS     │ ▸ MISSIONS                                             │
-│              │                                                        │
-│ ● alpha      │ [ACTIVE]  API routes        ← alpha  02:34 elapsed     │
-│   editing    │ [ACTIVE]  Unit tests        ← bravo  01:12 elapsed     │
-│   auth.ts    │ [DONE]    Project setup      completed 5m ago           │
-│   ├─ Sub-a1  │ [BLOCKED] E2E tests         waiting on: API routes     │
-│   └─ Sub-a2  │                                                        │
-│              │──────────────────────────────────────────────────────── │
-│ ● bravo      │ ▸ TIMELINE                                             │
-│   running    │                                                        │
-│   npm test   │ 12:34:02 alpha  EDIT  src/middleware/auth.ts            │
-│              │ 12:34:01 bravo  BASH  npm test --coverage               │
-│ ○ charlie    │ 12:33:58 alpha  READ  package.json                     │
-│   idle 45s   │ 12:33:55 alpha  BASH  git status                       │
-│──────────────│ 12:33:50 charlie READ src/routes/payments.ts           │
-│ ▸ INSTRUCT   │ 12:33:48 alpha  WRITE src/types/auth.d.ts              │
-│ >_ Focus JWT │                                                        │
-└──────────────┴────────────────────────────────────────────────────────┘
-```
+<div align="center">
+<img src="docs/screenshots/dashboard.png" alt="Mission Control Dashboard" width="900">
+<br>
+<sub>Live dashboard showing agents, missions, real token costs, context health, and timeline</sub>
+</div>
 
 ---
 
