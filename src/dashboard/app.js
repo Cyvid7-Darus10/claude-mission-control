@@ -968,103 +968,20 @@
     var status = mission.status || 'queued';
     var actions = createEl('div', { className: 'mission-actions' });
 
-    if (status === 'queued') {
-      // Assign to agent — show a select with active agents
-      var activeAgents = state.agents.filter(function (a) { return a.status === 'active'; });
-      if (activeAgents.length > 0) {
-        var select = createEl('select', { className: 'mission-agent-select' });
-        select.appendChild(createEl('option', { textContent: 'Assign to...', className: 'placeholder-opt' }));
-        select.options[0].disabled = true;
-        select.options[0].selected = true;
-        activeAgents.forEach(function (agent) {
-          var label = agentDisplayName(agent);
-          select.appendChild(createEl('option', { textContent: label }));
-          select.options[select.options.length - 1].value = agent.id;
-        });
-        select.addEventListener('change', function () {
-          if (select.value) {
-            var agentId = select.value;
-            // Assign and send instruction so the agent knows about the mission
-            patchMission(mission.id, { assigned_agent_id: agentId, status: 'active' });
-            var instrMsg = '[Mission Assigned] ' + mission.title;
-            if (mission.description) instrMsg += ' — ' + mission.description;
-            fetch('/api/instructions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ target_agent_id: agentId, message: instrMsg }),
-              credentials: 'include',
-            }).then(function () {
-              showToast('Assigned + instruction sent to agent');
-            }).catch(function () {});
-          }
-        });
-        actions.appendChild(select);
-      }
-
-      // Start without agent
-      var startBtn = createEl('button', { className: 'mission-action-btn start', textContent: '\u25B6 START' });
-      startBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'active' }); });
-      actions.appendChild(startBtn);
-
-      // Delete
-      var delBtn = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 DELETE' });
-      delBtn.addEventListener('click', function () { deleteMission(mission.id); });
-      actions.appendChild(delBtn);
+    // Simple checklist: toggle done / reopen + delete
+    if (status === 'completed') {
+      var reopenBtn = createEl('button', { className: 'mission-action-btn', textContent: '\u21BB REOPEN' });
+      reopenBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'queued' }); });
+      actions.appendChild(reopenBtn);
+    } else {
+      var doneBtn = createEl('button', { className: 'mission-action-btn success', textContent: '\u2713 DONE' });
+      doneBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'completed' }); });
+      actions.appendChild(doneBtn);
     }
 
-    if (status === 'active') {
-      // Complete
-      var completeBtn = createEl('button', { className: 'mission-action-btn success', textContent: '\u2713 COMPLETE' });
-      completeBtn.addEventListener('click', function () {
-        patchMission(mission.id, { status: 'completed', result: 'Completed from dashboard' });
-        // Notify agent if assigned
-        if (mission.assigned_agent_id) {
-          fetch('/api/instructions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ target_agent_id: mission.assigned_agent_id, message: '[Mission Complete] "' + mission.title + '" has been marked as done. You can move on.' }),
-            credentials: 'include',
-          }).catch(function () {});
-        }
-      });
-      actions.appendChild(completeBtn);
-
-      // Fail
-      var failBtn = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 FAIL' });
-      failBtn.addEventListener('click', function () {
-        patchMission(mission.id, { status: 'failed', result: 'Failed from dashboard' });
-        if (mission.assigned_agent_id) {
-          fetch('/api/instructions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ target_agent_id: mission.assigned_agent_id, message: '[Mission Failed] "' + mission.title + '" was marked as failed. Stop working on this and await further instructions.' }),
-            credentials: 'include',
-          }).catch(function () {});
-        }
-      });
-      actions.appendChild(failBtn);
-    }
-
-    if (status === 'blocked') {
-      // Force unblock
-      var unblockBtn = createEl('button', { className: 'mission-action-btn', textContent: '\u21AA UNBLOCK' });
-      unblockBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'queued' }); });
-      actions.appendChild(unblockBtn);
-    }
-
-    if (status === 'completed' || status === 'failed') {
-      // Requeue
-      var requeueBtn = createEl('button', { className: 'mission-action-btn', textContent: '\u21BB REQUEUE' });
-      requeueBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'queued', assigned_agent_id: null }); });
-      actions.appendChild(requeueBtn);
-    }
-
-    // Delete available on all statuses (except queued which already has it above)
-    if (status !== 'queued') {
-      var delBtn2 = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 DELETE' });
-      delBtn2.addEventListener('click', function () { deleteMission(mission.id); });
-      actions.appendChild(delBtn2);
-    }
+    var delBtn = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 DELETE' });
+    delBtn.addEventListener('click', function () { deleteMission(mission.id); });
+    actions.appendChild(delBtn);
 
     return actions;
   }
@@ -1074,80 +991,38 @@
     clearElement($missionsList);
 
     if (state.missions.length === 0) {
-      $missionsList.appendChild(createEl('div', { className: 'empty-state', textContent: 'No missions' }));
+      $missionsList.appendChild(createEl('div', { className: 'empty-state', textContent: 'No goals yet — press n to add one' }));
       return;
     }
 
     state.missions.forEach(function (mission, i) {
       var status = mission.status || 'queued';
+      var isDone = status === 'completed';
       var focused = (state.activePanel === 1 && state.focusedRow[1] === i);
       var isExpanded = expandedMissionId === mission.id;
-      var rowClass = 'mission-row' + (focused ? ' focused' : '') + (isExpanded ? ' expanded' : '');
+      var rowClass = 'mission-row' + (focused ? ' focused' : '') + (isExpanded ? ' expanded' : '') + (isDone ? ' done' : '');
 
-      var tag = createEl('span', { className: 'status-tag ' + status, textContent: status.toUpperCase() });
-      var titleEl = createEl('span', { className: 'mission-title', textContent: mission.title });
+      // Simple checkbox-style indicator
+      var checkbox = createEl('span', {
+        className: 'goal-check' + (isDone ? ' checked' : ''),
+        textContent: isDone ? '\u2713' : '\u25CB'  // ✓ or ○
+      });
+      var titleEl = createEl('span', { className: 'mission-title' + (isDone ? ' strikethrough' : ''), textContent: mission.title });
 
-      // Meta: agent assignment + elapsed time
       var metaText = '';
-      if (mission.assigned_agent_id) {
-        var assignedAgent = state.agents.find(function (a) { return a.id === mission.assigned_agent_id; });
-        var agentLabel = assignedAgent ? agentDisplayName(assignedAgent) : mission.assigned_agent_id;
-        metaText = '\u2190 ' + agentLabel;
-        if (mission.started_at && status === 'active') {
-          metaText += '  ' + elapsed(mission.started_at);
-        }
-      } else if (mission.completed_at && status === 'completed') {
-        metaText = 'completed ' + timeAgo(mission.completed_at);
-      } else if (mission.completed_at && status === 'failed') {
-        metaText = 'failed ' + timeAgo(mission.completed_at);
-      } else if (mission.priority) {
-        metaText = 'priority: ' + (mission.priority > 5 ? 'HIGH' : mission.priority > 2 ? 'MED' : 'LOW');
+      if (mission.completed_at && isDone) {
+        metaText = timeAgo(mission.completed_at);
+      } else if (mission.created_at) {
+        metaText = timeAgo(mission.created_at);
       }
-
       var metaEl = metaText ? createEl('span', { className: 'mission-meta', textContent: metaText }) : null;
-      var topRow = createEl('div', { className: 'mission-top' }, [tag, titleEl, metaEl].filter(Boolean));
 
+      var topRow = createEl('div', { className: 'mission-top' }, [checkbox, titleEl, metaEl].filter(Boolean));
       var children = [topRow];
 
       // Description (show when expanded)
       if (isExpanded && mission.description) {
         children.push(createEl('div', { className: 'mission-desc', textContent: mission.description }));
-      }
-
-      // Result (show when expanded and completed/failed)
-      if (isExpanded && mission.result && (status === 'completed' || status === 'failed')) {
-        children.push(createEl('div', { className: 'mission-result', textContent: 'Result: ' + mission.result }));
-      }
-
-      // Dependency info for blocked missions
-      if (status === 'blocked' && mission.depends_on) {
-        var deps = mission.depends_on;
-        if (typeof deps === 'string') {
-          try { deps = JSON.parse(deps); } catch (e) { deps = []; }
-        }
-        if (deps.length > 0) {
-          var depEl = createEl('div', { className: 'mission-detail' });
-          depEl.appendChild(createEl('span', { className: 'dep-label', textContent: 'waiting on: ' }));
-          depEl.appendChild(document.createTextNode(deps.join(', ')));
-          children.push(depEl);
-        }
-      }
-
-      // Subtask progress bar
-      if (mission.subtasks) {
-        var subtasks = mission.subtasks;
-        if (typeof subtasks === 'string') {
-          try { subtasks = JSON.parse(subtasks); } catch (e) { subtasks = null; }
-        }
-        if (Array.isArray(subtasks) && subtasks.length > 0) {
-          var done = subtasks.filter(function (s) { return s.done; }).length;
-          var total = subtasks.length;
-          var pct = Math.round((done / total) * 100);
-          var progressFill = createEl('div', { className: 'subtask-progress-fill', style: 'width:' + pct + '%' });
-          var progressBar = createEl('div', { className: 'subtask-progress-bar' }, [progressFill]);
-          var progressLabel = createEl('span', { className: 'subtask-progress-label', textContent: done + '/' + total });
-          children.push(createEl('div', { className: 'subtask-progress' }, [progressBar, progressLabel]));
-        }
       }
 
       // Action buttons (show when expanded)
