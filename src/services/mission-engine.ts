@@ -175,6 +175,7 @@ export function createMission(input: CreateMissionInput): Mission {
     started_at: null,
     completed_at: null,
     result: null,
+    subtasks: null,
   };
 
   const created = dbCreateMission(mission);

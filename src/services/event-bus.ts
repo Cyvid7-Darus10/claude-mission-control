@@ -19,6 +19,7 @@ interface EventBusEvents {
   "event:new": Event;
   "mission:update": Mission;
   "instruction:new": Instruction;
+  "instruction:delivered": Instruction;
   "security:event": SecurityEvent;
 }
 

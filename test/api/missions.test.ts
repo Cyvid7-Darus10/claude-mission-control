@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
 const { createServer } = await import('../../src/server');
 
 let stop: () => void;
+let f: ReturnType<typeof authedFetch>;
 const PORT = 14281;
 const BASE = `http://localhost:${PORT}`;
 
@@ -14,6 +15,8 @@ beforeAll(async () => {
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
+  const cookie = await authenticate(BASE, server.accessCode);
+  f = authedFetch(cookie);
 });
 
 afterAll(() => {
@@ -22,7 +25,7 @@ afterAll(() => {
 });
 
 async function post(path: string, body: unknown) {
-  return fetch(`${BASE}${path}`, {
+  return f(`${BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -30,7 +33,7 @@ async function post(path: string, body: unknown) {
 }
 
 async function patch(path: string, body: unknown) {
-  return fetch(`${BASE}${path}`, {
+  return f(`${BASE}${path}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -87,7 +90,7 @@ describe('POST /api/missions', () => {
 
 describe('GET /api/missions', () => {
   it('lists all missions', async () => {
-    const res = await fetch(`${BASE}/api/missions`);
+    const res = await f(`${BASE}/api/missions`);
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
@@ -146,7 +149,7 @@ describe('DELETE /api/missions/:id', () => {
     const createRes = await post('/api/missions', { title: 'Deletable' });
     const { id } = await createRes.json();
 
-    const res = await fetch(`${BASE}/api/missions/${id}`, { method: 'DELETE' });
+    const res = await f(`${BASE}/api/missions/${id}`, { method: 'DELETE' });
     expect(res.status).toBe(200);
   });
 
@@ -155,7 +158,7 @@ describe('DELETE /api/missions/:id', () => {
     const { id } = await createRes.json();
     await patch(`/api/missions/${id}`, { status: 'active' });
 
-    const res = await fetch(`${BASE}/api/missions/${id}`, { method: 'DELETE' });
+    const res = await f(`${BASE}/api/missions/${id}`, { method: 'DELETE' });
     expect(res.status).toBe(409);
   });
 

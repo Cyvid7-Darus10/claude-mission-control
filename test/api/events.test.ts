@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
 const { createServer } = await import('../../src/server');
 
 let stop: () => void;
+let f: ReturnType<typeof authedFetch>;
 const PORT = 14280;
 const BASE = `http://localhost:${PORT}`;
 
@@ -13,8 +14,9 @@ beforeAll(async () => {
   const server = createServer(PORT);
   stop = server.stop;
   server.start();
-  // Wait for server to be ready
   await new Promise((resolve) => setTimeout(resolve, 500));
+  const cookie = await authenticate(BASE, server.accessCode);
+  f = authedFetch(cookie);
 });
 
 afterAll(() => {
@@ -82,7 +84,7 @@ describe('POST /api/events', () => {
 
 describe('GET /api/events', () => {
   it('returns events with default pagination', async () => {
-    const res = await fetch(`${BASE}/api/events`);
+    const res = await f(`${BASE}/api/events`);
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
@@ -90,7 +92,7 @@ describe('GET /api/events', () => {
   });
 
   it('respects limit parameter', async () => {
-    const res = await fetch(`${BASE}/api/events?limit=1`);
+    const res = await f(`${BASE}/api/events?limit=1`);
     const data = await res.json();
     expect(data.length).toBe(1);
   });

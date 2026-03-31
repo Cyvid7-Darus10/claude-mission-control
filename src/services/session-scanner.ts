@@ -69,6 +69,9 @@ export interface SessionTokenUsage {
   readonly messageCount: number;
   readonly firstTimestamp: string;
   readonly lastTimestamp: string;
+  readonly contextWindowUsed: number;   // last known context usage (tokens)
+  readonly contextWindowPercent: number; // 0-100
+  readonly isActive: boolean;           // session PID is still running
 }
 
 export interface DailyTokenUsage {
@@ -104,6 +107,7 @@ export interface TokenSummary {
   readonly totalCost: number;
   readonly totalMessages: number;
   readonly totalSessions: number;
+  readonly activeSessions: number;
   readonly cacheHitRate: number;
 }
 
@@ -157,6 +161,7 @@ function parseSessionFile(filePath: string, sessionId: string): SessionTokenUsag
   let model = 'unknown';
   let firstTimestamp = '';
   let lastTimestamp = '';
+  let lastContextUsed = 0; // last known context window usage (from cache_read + cache_creation)
 
   const lines = content.split('\n');
   for (const line of lines) {
@@ -197,6 +202,10 @@ function parseSessionFile(filePath: string, sessionId: string): SessionTokenUsag
     cacheReadTokens += cacheReadTok;
     messageCount++;
 
+    // Track last known context window usage (cache_read approximates context size)
+    const thisContext = inTok + cacheTok + cacheReadTok;
+    if (thisContext > 0) lastContextUsed = thisContext;
+
     // Calculate cost for this message
     const pricing = getPricing(msgModel);
     cost += tokenCost(inTok, pricing.input)
@@ -206,6 +215,21 @@ function parseSessionFile(filePath: string, sessionId: string): SessionTokenUsag
   }
 
   if (messageCount === 0) return null;
+
+  // Context window size by model (tokens)
+  const CONTEXT_WINDOWS: Record<string, number> = {
+    'claude-opus-4-6': 200000,
+    'claude-opus-4-5': 200000,
+    'claude-sonnet-4-6': 200000,
+    'claude-sonnet-4-5': 200000,
+    'claude-sonnet-4-0': 200000,
+    'claude-haiku-4-5': 200000,
+    'claude-haiku-3-5': 200000,
+  };
+  const contextWindow = CONTEXT_WINDOWS[model] || 200000;
+  const contextPercent = contextWindow > 0
+    ? Math.min(100, parseFloat((lastContextUsed / contextWindow * 100).toFixed(1)))
+    : 0;
 
   const result: SessionTokenUsage = {
     sessionId,
@@ -219,6 +243,9 @@ function parseSessionFile(filePath: string, sessionId: string): SessionTokenUsag
     messageCount,
     firstTimestamp,
     lastTimestamp,
+    contextWindowUsed: lastContextUsed,
+    contextWindowPercent: contextPercent,
+    isActive: false, // Set by scanner after checking PIDs
   };
 
   // Cache it
@@ -232,6 +259,42 @@ function parseSessionFile(filePath: string, sessionId: string): SessionTokenUsag
 // ---------------------------------------------------------------------------
 
 const CLAUDE_DIR = join(homedir(), '.claude', 'projects');
+const SESSIONS_DIR = join(homedir(), '.claude', 'sessions');
+
+/**
+ * Get active session IDs by reading ~/.claude/sessions/*.json
+ * and checking if the PID is still running.
+ */
+function getActiveSessionIds(): Set<string> {
+  const active = new Set<string>();
+  if (!existsSync(SESSIONS_DIR)) return active;
+
+  let files: string[];
+  try {
+    files = readdirSync(SESSIONS_DIR).filter((f) => f.endsWith('.json'));
+  } catch {
+    return active;
+  }
+
+  for (const file of files) {
+    try {
+      const content = readFileSync(join(SESSIONS_DIR, file), 'utf-8');
+      const meta = JSON.parse(content) as { pid?: number; sessionId?: string };
+      if (meta.pid && meta.sessionId) {
+        // Check if PID is still running
+        try {
+          process.kill(meta.pid, 0); // Signal 0 = test existence
+          active.add(meta.sessionId);
+        } catch {
+          // PID not running — session is dead
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return active;
+}
 
 /**
  * Scan all Claude Code JSONL session logs and compute token usage.
@@ -244,6 +307,7 @@ export function scanSessions(hoursBack = 0, projectFilter?: string): TokenSummar
     : new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
   const sinceDate = since.slice(0, 10);
 
+  const activeIds = getActiveSessionIds();
   const sessions: SessionTokenUsage[] = [];
 
   if (!existsSync(CLAUDE_DIR)) {
@@ -289,7 +353,12 @@ export function scanSessions(hoursBack = 0, projectFilter?: string): TokenSummar
       // Filter by time range
       if (usage.lastTimestamp < since) continue;
 
-      sessions.push(usage);
+      // Mark active sessions
+      if (activeIds.has(sessionId)) {
+        sessions.push({ ...usage, isActive: true });
+      } else {
+        sessions.push(usage);
+      }
     }
   }
 
@@ -418,6 +487,7 @@ export function scanSessions(hoursBack = 0, projectFilter?: string): TokenSummar
     totalCost: parseFloat(totalCost.toFixed(6)),
     totalMessages,
     totalSessions: sessions.length,
+    activeSessions: sessions.filter((s) => s.isActive).length,
     cacheHitRate,
   };
 }
@@ -435,6 +505,7 @@ function emptySummary(): TokenSummary {
     totalCost: 0,
     totalMessages: 0,
     totalSessions: 0,
+    activeSessions: 0,
     cacheHitRate: 0,
   };
 }
