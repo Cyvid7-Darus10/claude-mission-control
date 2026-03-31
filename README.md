@@ -399,7 +399,18 @@ Inspired by:
 
 ## License
 
-Apache 2.0 — See [LICENSE](LICENSE)
+**Apache License 2.0** — See [LICENSE](LICENSE)
+
+Copyright 2026 Cyrus David Pastelero. All rights reserved.
+
+You are free to use, modify, and distribute this software under the terms of the Apache 2.0 license. **Attribution is required:**
+
+- You must retain the original copyright notice and license in all copies or substantial portions of the software
+- You must clearly state any changes you made
+- You must include a notice in any derivative work that it is based on Claude Mission Control by Cyrus David Pastelero
+- You may not use the project name, logo, or branding to imply endorsement of derivative works
+
+If you build something with this, a link back to [this repo](https://github.com/Cyvid7-Darus10/claude-mission-control) is appreciated.
 
 ---
 

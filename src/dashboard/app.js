@@ -1,4 +1,7 @@
 // ── Mission Control Dashboard ─────────────────────────────────────────────────
+// Copyright 2026 Cyrus David Pastelero. Apache-2.0 License.
+// https://github.com/Cyvid7-Darus10/claude-mission-control
+//
 // Palantir Gotham-style command center. Plain JS — no build step, no framework.
 // Direct DOM manipulation for sub-100ms renders.
 
