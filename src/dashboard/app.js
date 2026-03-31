@@ -145,8 +145,13 @@
     return (Date.now() - lastSeen) > STUCK_THRESHOLD_MS;
   }
 
-  // Read-only tools don't count as loops — re-reading is normal behavior.
-  var LOOP_IGNORE_TOOLS = { 'Read': true, 'Grep': true, 'Glob': true };
+  // Tools that are normal to call repeatedly — don't flag as loops.
+  // Read/search: re-reading is normal. Agent/Task: spawning parallel work is normal.
+  var LOOP_IGNORE_TOOLS = {
+    'Read': true, 'Grep': true, 'Glob': true,
+    'Agent': true, 'SendMessage': true,
+    'TaskCreate': true, 'TaskUpdate': true, 'TaskGet': true
+  };
 
   function isAgentLooping(agentId) {
     var recent = agentRecentTools[agentId];
@@ -618,6 +623,34 @@
     }
     // Subagent: agent_id is usually a UUID — show short version
     return aid.length > 16 ? 'Sub-' + aid.slice(0, 6) : aid;
+  }
+
+  // Agent filter: 'all', 'active', 'idle'
+  var agentFilter = 'all';
+
+  function matchesAgentFilter(agent) {
+    if (agentFilter === 'all') return true;
+    if (agentFilter === 'active') return agent.status === 'active';
+    if (agentFilter === 'idle') return agent.status === 'idle';
+    return true;
+  }
+
+  // Wire up filter buttons
+  var $agentFilters = document.getElementById('agent-filters');
+  if ($agentFilters) {
+    $agentFilters.addEventListener('click', function (e) {
+      var btn = e.target.closest('.agent-filter-btn');
+      if (!btn) return;
+      e.stopPropagation(); // Don't trigger panel collapse
+      var filter = btn.getAttribute('data-filter');
+      if (!filter) return;
+      agentFilter = filter;
+      // Update active class
+      $agentFilters.querySelectorAll('.agent-filter-btn').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-filter') === filter);
+      });
+      renderAgents();
+    });
   }
 
   function buildAgentTree() {
