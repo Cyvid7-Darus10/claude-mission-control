@@ -2124,6 +2124,10 @@ html, body {
     flex: 1;
   }
 
+  #usage-panel .panel-body {
+    padding-bottom: 48px;
+  }
+
   #agents-panel {
     flex: 1;
   }
