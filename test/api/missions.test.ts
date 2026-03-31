@@ -153,13 +153,13 @@ describe('DELETE /api/missions/:id', () => {
     expect(res.status).toBe(200);
   });
 
-  it('rejects deleting a non-queued mission', async () => {
+  it('allows deleting a non-queued mission', async () => {
     const createRes = await post('/api/missions', { title: 'Active one' });
     const { id } = await createRes.json();
     await patch(`/api/missions/${id}`, { status: 'active' });
 
     const res = await f(`${BASE}/api/missions/${id}`, { method: 'DELETE' });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(200);
   });
 
   it('returns 404 for nonexistent mission', async () => {

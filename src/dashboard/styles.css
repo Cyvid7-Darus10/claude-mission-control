@@ -642,6 +642,16 @@ html, body {
   font-style: italic;
 }
 
+.mission-footer-row {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-action.danger-text:hover {
+  color: var(--danger);
+  border-color: var(--danger-dim);
+}
+
 .mission-actions {
   display: flex;
   flex-wrap: wrap;
