@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Node.js-blue)](https://nodejs.org)
 [![Node](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org)
+[![GitHub stars](https://img.shields.io/github/stars/Cyvid7-Darus10/claude-mission-control?style=social)](https://github.com/Cyvid7-Darus10/claude-mission-control)
 
 One command. Every agent. Real-time.
 
