@@ -187,18 +187,23 @@ claude-mission-control/
 
 ### Phase 4: Dashboard UI — Terminal-Style Web Interface
 
-**Design philosophy:** Looks like a military command center terminal. Speed and smoothness are the top priority. No flashy UI frameworks — raw performance.
+**Design philosophy:** Palantir Gotham meets SHIELD command center. Data-dense, grid-based, feels like intelligence software. Speed and smoothness are the top priority. No flashy UI frameworks — raw performance.
+
+**Design references:**
+- **Palantir Gotham/Foundry** — dark grid layout, data density, blue/cyan accent on dark gray, thin borders, information hierarchy through brightness not size
+- **Bloomberg Terminal** — maximum data per pixel, keyboard-first, no wasted space
+- **SHIELD Helicarrier** — status panels, agent tracking, mission coordination
 
 **Visual style:**
-- Monospace font only (`JetBrains Mono` or `Fira Code`, fallback `monospace`)
-- Black background (`#0a0a0a`), green/amber/cyan text
-- No rounded corners, no shadows, no gradients
-- Borders use box-drawing characters (`┌─┐│└─┘`)
-- Blinking cursor on active elements
-- Scanline overlay (subtle CSS effect)
-- Status indicators: `●` green (active), `○` yellow (idle), `✕` red (failed), `◌` gray (disconnected)
-- All text left-aligned, fixed-width columns
-- Animations: typewriter text reveal, smooth scroll, no transitions > 100ms
+- Monospace font (`JetBrains Mono` / `Fira Code` / `monospace`)
+- Background: `#0d1117` (Palantir dark), panels: `#161b22`, borders: `#30363d`
+- Primary text: `#e6edf3`, secondary: `#8b949e`, accent: `#58a6ff` (blue), success: `#3fb950` (green), warning: `#d29922` (amber), danger: `#f85149` (red)
+- Thin 1px borders between panels — no rounded corners, no shadows
+- Data density: multiple columns, compact rows, no padding waste
+- Status indicators: `●` online (green), `○` idle (amber), `✕` failed (red), `◌` offline (gray)
+- Subtle glow on active/focused elements (`box-shadow: 0 0 4px rgba(88,166,255,0.3)`)
+- Header bar with system stats: agent count, mission count, events/sec, uptime
+- No animations > 100ms, no loading spinners — instant state transitions
 
 **Layout:**
 ```
@@ -295,23 +300,43 @@ claude-mission-control/
 └──────────────┴────────────────────────────────────────────────────────┘
 ```
 
-**Visual elements:**
+**Color system (Palantir-inspired):**
+```
+Background:     #0d1117     (deep dark)
+Panel bg:       #161b22     (slightly lighter)
+Panel border:   #30363d     (thin gray lines)
+Primary text:   #e6edf3     (bright white)
+Secondary text: #8b949e     (muted gray)
+Accent/focus:   #58a6ff     (Palantir blue)
+Success:        #3fb950     (green)
+Warning:        #d29922     (amber)
+Danger:         #f85149     (red)
+Glow:           rgba(88,166,255,0.3)  (focus ring)
+```
+
+**Typography:**
 - Font: `JetBrains Mono` / `Fira Code` / `monospace`
-- Background: `#0a0a0a`, text: `#00ff41` (green), `#ffb000` (amber), `#00d4ff` (cyan)
-- Borders: box-drawing characters (`┌─┐│└─┘`)
-- Status: `●` active (green), `○` idle (amber), `✕` failed (red), `◌` disconnected (gray)
-- Subtle CRT scanline overlay via CSS
-- Blinking cursor `_` on input fields
-- No animations > 100ms
+- Header labels: 11px uppercase, letter-spacing 1px, secondary color
+- Data values: 13px, primary color
+- Timestamps: 11px, secondary color
 
 **Keyboard navigation:**
-- `Tab` — cycle focus: Agents → Missions → Timeline → Send Message
+- `Tab` — cycle focus: Agents → Missions → Timeline → Command
 - `↑↓` / `jk` — navigate within focused panel
 - `Enter` — select agent (filters timeline), expand mission details
-- `n` — new mission (inline form)
-- `i` — focus instruction input
+- `n` — new mission (inline form, no modal)
+- `i` — focus command input
+- `/` — search/filter events
 - `q` — quit (with confirmation)
 - Mouse clicks work too but keyboard is primary
+
+**Palantir-style details:**
+- Panel headers are uppercase 11px with subtle bottom border
+- Active panel has blue left border accent (2px)
+- Focused rows have subtle blue background (`#161b22` → `#1c2333`)
+- Data tables use alternating row opacity for readability
+- Status dots pulse gently for active agents (CSS animation)
+- Header bar shows live stats: `3 AGENTS  ●  5 MISSIONS  ●  142 EVENTS  ●  UPTIME 02:34:12`
 
 ## Inspiration Sources
 

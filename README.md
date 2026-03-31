@@ -45,7 +45,7 @@ Mission Control is a web dashboard that connects to Claude Code via hooks. Every
 └──────────────┴────────────────────────────────────────────────────────┘
 ```
 
-**Design:** Terminal-style web UI. Monospace font, black background, green/amber text, box-drawing borders, blinking cursors. Keyboard-driven (arrow keys, tab, vim keys). Sub-100ms renders — no React, no virtual DOM. Feels like a military command center, runs like `htop`.
+**Design:** Palantir Gotham-inspired web UI. Dark grid layout, data-dense, monospace font, blue accent on deep dark background. Keyboard-driven (vim keys, tab, arrow keys). Sub-100ms renders — no React, no virtual DOM, direct DOM manipulation. Feels like intelligence software.
 
 ---
 
