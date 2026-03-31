@@ -11,7 +11,7 @@
 
 One command. Every agent. Real-time.
 
-<img src="docs/screenshots/dashboard.png" alt="Mission Control Dashboard" width="900">
+<img src="docs/showcase.gif" alt="Mission Control Dashboard — live demo" width="900">
 
 </div>
 
@@ -201,28 +201,30 @@ Each agent row shows rich, at-a-glance status:
 
 ### Mission Board
 
-**Zero setup required.** Missions auto-create when agents spawn subagents with meaningful descriptions.
+**Zero setup required.** Missions auto-create from agent activity — every session gets a mission.
 
 ```
+New Claude Code session starts in /projects/mission-control
+    → Mission created: "mission-control"
+
 Agent spawns subagent: "Security review of auth module"
     → Mission created: "Security review of auth module"
-    → Status: ACTIVE (assigned to subagent)
-
-Agent spawns subagent: "Write unit tests for routes"
-    → Mission created: "Write unit tests for routes"
-    → Status: ACTIVE (assigned to subagent)
 
 Agent session ends (Stop hook fires)
     → Mission auto-completed ✓
 ```
 
-Missions only create from **subagent descriptions** — not from individual tool calls like `Read` or `Bash`. This keeps the board clean and meaningful.
+| Source | Mission Title |
+|--------|--------------|
+| **Main agent** | Project folder name (e.g. `mission-control`, `api-service`) |
+| **Subagent** | Description from Agent tool (e.g. `Fix build errors`, `Code review`) |
+
+Titles are filtered — shell commands, file paths, and URLs are rejected. Same title never creates duplicates.
 
 | Feature | Description |
 |---------|-------------|
-| **Auto-populated** | Missions appear when subagents spawn with descriptions |
-| **Deduplicated** | Same title never creates duplicate missions |
-| **Auto-completed** | When an agent's session ends, its mission is marked done |
+| **Auto-populated** | Every session and subagent gets a mission automatically |
+| **Auto-completed** | When a session ends, its mission is marked done |
 | **Click to expand** | Shows assigned agent, path, model, current activity, timestamps |
 | **Agent highlighting** | Click an agent to highlight its linked missions |
 | **Cleanup** | `clear done` and `clear all` links for bulk removal |

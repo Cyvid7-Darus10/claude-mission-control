@@ -42,7 +42,8 @@ function autoMission(
 ): void {
   try {
     // On Stop: complete any active mission for this agent
-    if (eventType === 'stop') {
+    const eventLower = eventType.toLowerCase();
+    if (eventLower === 'stop') {
       const missions = getMissions();
       for (const m of missions) {
         if (m.assigned_agent_id === compositeId && m.status === 'active') {
@@ -77,7 +78,7 @@ function autoMission(
     // 2. Agent tool — spawning a subagent with a description
     // Main agent tool calls (Read, Bash, etc.) are too low-level to be missions.
 
-    if (eventType === 'subagent_start' || toolName === 'Agent') {
+    if (eventLower === 'subagent_start' || eventLower === 'subagentstart' || toolName === 'Agent') {
       let input: Record<string, unknown> = {};
       if (typeof toolInput === 'string') {
         try { input = JSON.parse(toolInput) as Record<string, unknown>; } catch {}
