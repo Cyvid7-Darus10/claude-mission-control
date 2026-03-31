@@ -632,8 +632,12 @@
       if (clearBtn) {
         e.stopPropagation();
         fetch('/api/agents/disconnected', { method: 'DELETE', credentials: 'include' })
-          .then(function (res) { return res.json(); })
+          .then(function (res) {
+            if (res.status === 401) { window.location.href = '/login'; return null; }
+            return res.json();
+          })
           .then(function (data) {
+            if (!data) return;
             var count = data.deleted || 0;
             if (count === 0) { showToast('No disconnected agents'); return; }
             // Remove from local state
