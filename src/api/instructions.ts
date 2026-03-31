@@ -5,7 +5,7 @@ import {
   markInstructionDelivered,
 } from '../db.js';
 import { eventBus } from '../services/event-bus.js';
-import { parseBody, sendJson, extractId } from './utils.js';
+import { parseBody, sendJson, extractId, FIELD_LIMITS } from './utils.js';
 
 /**
  * Handle requests to /api/instructions
@@ -70,6 +70,11 @@ async function handleCreateInstruction(
 
   if (typeof message !== 'string' || message.trim().length === 0) {
     sendJson(res, 400, { error: 'Missing or invalid field: message' });
+    return;
+  }
+
+  if (message.length > FIELD_LIMITS.message) {
+    sendJson(res, 400, { error: `message exceeds maximum length of ${FIELD_LIMITS.message} characters` });
     return;
   }
 

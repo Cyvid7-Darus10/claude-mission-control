@@ -12,7 +12,7 @@ import {
   MissionEngineError,
 } from '../services/mission-engine.js';
 import { eventBus } from '../services/event-bus.js';
-import { parseBody, sendJson, extractId, parseQuery } from './utils.js';
+import { parseBody, sendJson, extractId, parseQuery, FIELD_LIMITS } from './utils.js';
 
 /**
  * Handle requests to /api/missions and /api/missions/:id
@@ -103,6 +103,16 @@ async function handleCreateMission(
 
   if (typeof title !== 'string' || title.trim().length === 0) {
     sendJson(res, 400, { error: 'Missing or invalid field: title' });
+    return;
+  }
+
+  if (title.length > FIELD_LIMITS.title) {
+    sendJson(res, 400, { error: `title exceeds maximum length of ${FIELD_LIMITS.title} characters` });
+    return;
+  }
+
+  if (typeof description === 'string' && description.length > FIELD_LIMITS.description) {
+    sendJson(res, 400, { error: `description exceeds maximum length of ${FIELD_LIMITS.description} characters` });
     return;
   }
 

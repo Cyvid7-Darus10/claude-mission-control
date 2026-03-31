@@ -4,94 +4,238 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Scanline overlay (subtle) -->
+  <div id="scanlines"></div>
+
+  <!-- Classification banner -->
+  <div id="classification-banner">Mission Control &mdash; Internal Use Only</div>
+
+  <!-- Header bar -->
   <header id="header">
     <div class="header-left">
-      <span class="logo">MISSION CONTROL</span>
-      <span class="version">v0.1.0</span>
+      <span class="logo-icon">&#9678;</span>
+      <span class="logo">{ SENTINEL }</span>
     </div>
     <div class="header-stats">
-      <span class="stat">Agents: <span id="agent-count">0</span></span>
-      <span class="stat">Missions: <span id="mission-count">0</span></span>
-      <span class="stat">Events: <span id="event-count">0</span></span>
+      <span class="stat"><span id="agent-count">0</span> Agents</span>
+      <span class="stat-sep">|</span>
+      <span class="stat"><span id="mission-count">0</span> Missions</span>
+      <span class="stat-sep">|</span>
+      <span class="stat"><span id="event-count">0</span> Events</span>
+      <span class="stat-sep">|</span>
+      <span class="stat">Uptime <span id="uptime">00:00:00</span></span>
     </div>
     <div class="header-right">
-      <span id="connection-status" class="status-indicator disconnected">
-        <span class="status-dot"></span>
-        <span class="status-text">DISCONNECTED</span>
+      <button id="security-btn" class="security-shield" title="Security Status (s)">
+        <span class="shield-icon">&#9741;</span>
+        <span class="shield-label">SECURE</span>
+        <span class="shield-count" id="security-count">0</span>
+      </button>
+      <span class="kbd-hint" title="Press ? for shortcuts">? HELP</span>
+      <span id="connection-status" class="conn-status disconnected">
+        <span class="conn-dot"></span>
+        <span class="conn-text">DISCONNECTED</span>
       </span>
     </div>
   </header>
 
-  <!-- Main grid -->
+  <!-- Main 2-column grid -->
   <main id="main-grid">
 
-    <!-- Agents panel -->
-    <section id="agents-panel" class="panel active-panel" data-panel="agents">
-      <div class="panel-header">
-        <span class="panel-title">AGENTS</span>
-        <span class="panel-badge" id="agents-badge">0</span>
-      </div>
-      <div class="panel-body" id="agents-list">
-        <div class="empty-state">No agents connected</div>
-      </div>
-    </section>
+    <!-- Left column: Agents + Send Message -->
+    <div id="left-col">
+      <section id="agents-panel" class="panel active-panel" data-panel="agents">
+        <div class="panel-header">
+          <span class="panel-title"><span class="panel-chevron">&#9656;</span> AGENTS</span>
+          <span class="panel-badge" id="agents-badge">0</span>
+        </div>
+        <div class="panel-body" id="agents-list">
+          <div class="empty-state">
+            <div class="empty-icon">&#9675;</div>
+            <div>No agents connected</div>
+            <div class="empty-hint">Agents appear when Claude Code sessions start</div>
+          </div>
+        </div>
+      </section>
 
-    <!-- Missions panel -->
-    <section id="missions-panel" class="panel" data-panel="missions">
-      <div class="panel-header">
-        <span class="panel-title">MISSIONS</span>
-        <span class="panel-badge" id="missions-badge">0</span>
-      </div>
-      <div class="panel-body" id="missions-list">
-        <div class="empty-state">No missions</div>
-      </div>
-      <div class="panel-footer">
-        <button id="new-mission-btn" class="btn-action" title="New Mission (n)">+ NEW MISSION</button>
-      </div>
-    </section>
+      <!-- Inline instruction input -->
+      <section id="command-section" class="panel">
+        <div class="panel-header" style="cursor:default">
+          <span class="panel-title"><span class="panel-chevron" style="transform:rotate(90deg)">&#9656;</span> INSTRUCT</span>
+          <span class="command-target" id="command-target">no target</span>
+        </div>
+        <div class="command-body">
+          <span class="command-prompt">&gt;_</span>
+          <input type="text" id="command-input" placeholder="Select an agent first..." disabled>
+        </div>
+      </section>
+    </div>
 
-    <!-- Timeline panel -->
-    <section id="timeline-panel" class="panel" data-panel="timeline">
-      <div class="panel-header">
-        <span class="panel-title">TIMELINE</span>
-        <span class="panel-badge" id="timeline-badge">0</span>
-      </div>
-      <div class="panel-body" id="timeline-list">
-        <div class="empty-state">Waiting for events...</div>
-      </div>
-    </section>
+    <!-- Right column: Missions + Timeline -->
+    <div id="right-col">
+      <section id="missions-panel" class="panel" data-panel="missions">
+        <div class="panel-header">
+          <span class="panel-title"><span class="panel-chevron">&#9656;</span> MISSIONS</span>
+          <span class="panel-badge" id="missions-badge">0</span>
+        </div>
+        <div class="panel-body" id="missions-list">
+          <div class="empty-state">
+            <div class="empty-icon">&#9633;</div>
+            <div>No missions</div>
+            <div class="empty-hint">Press <kbd>n</kbd> to create a mission</div>
+          </div>
+        </div>
+        <div class="panel-footer" id="mission-create-bar">
+          <div id="mission-inline-form" class="hidden">
+            <input type="text" id="mission-title-input" placeholder="Mission title..." class="inline-input">
+            <div class="inline-form-actions">
+              <button id="mission-create-btn" class="btn-submit">CREATE</button>
+              <button id="mission-cancel-btn" class="btn-cancel">ESC</button>
+            </div>
+          </div>
+          <button id="new-mission-btn" class="btn-action">+ NEW MISSION <kbd>n</kbd></button>
+        </div>
+      </section>
+
+      <section id="usage-panel" class="panel" data-panel="usage">
+        <div class="panel-header">
+          <span class="panel-title"><span class="panel-chevron">&#9656;</span> USAGE</span>
+          <div class="period-tabs" id="period-tabs">
+            <button class="period-tab active" data-hours="24">24H</button>
+            <button class="period-tab" data-hours="168">7D</button>
+            <button class="period-tab" data-hours="720">30D</button>
+            <button class="period-tab" data-hours="0">ALL</button>
+          </div>
+          <span class="panel-badge" id="usage-badge">0</span>
+        </div>
+        <div class="panel-body" id="usage-list">
+          <div class="empty-state">
+            <div class="empty-icon">&#9632;</div>
+            <div>No usage data yet</div>
+            <div class="empty-hint">Tool usage stats appear as agents work</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="timeline-panel" class="panel" data-panel="timeline">
+        <div class="panel-header">
+          <span class="panel-title"><span class="panel-chevron">&#9656;</span> TIMELINE</span>
+          <span id="timeline-filter" class="timeline-filter hidden"></span>
+          <span class="panel-badge" id="timeline-badge">0</span>
+        </div>
+        <div class="panel-body" id="timeline-list">
+          <div class="empty-state">
+            <div class="empty-icon">&#9671;</div>
+            <div>Waiting for events...</div>
+            <div class="empty-hint">Events stream in as agents work</div>
+          </div>
+        </div>
+      </section>
+    </div>
 
   </main>
 
-  <!-- New mission modal -->
-  <div id="mission-modal" class="modal hidden">
-    <div class="modal-content">
-      <div class="modal-header">NEW MISSION</div>
-      <form id="mission-form">
-        <label for="mission-title">Title</label>
-        <input type="text" id="mission-title" placeholder="Mission title..." required>
-        <label for="mission-desc">Description</label>
-        <textarea id="mission-desc" rows="4" placeholder="Mission description..."></textarea>
-        <div class="modal-actions">
-          <button type="button" id="cancel-mission" class="btn-cancel">CANCEL</button>
-          <button type="submit" class="btn-submit">CREATE</button>
+  <!-- Mobile tab bar -->
+  <nav id="mobile-tabs">
+    <div class="mobile-tab-bar">
+      <button class="mobile-tab active" data-tab="agents">
+        <span class="mobile-tab-icon">&#9679;</span>
+        <span>Agents</span>
+        <span class="mobile-tab-count" id="mob-agent-count">0</span>
+      </button>
+      <button class="mobile-tab" data-tab="missions">
+        <span class="mobile-tab-icon">&#9633;</span>
+        <span>Missions</span>
+        <span class="mobile-tab-count" id="mob-mission-count">0</span>
+      </button>
+      <button class="mobile-tab" data-tab="usage">
+        <span class="mobile-tab-icon">&#9632;</span>
+        <span>Usage</span>
+        <span class="mobile-tab-count" id="mob-usage-count">0</span>
+      </button>
+      <button class="mobile-tab" data-tab="timeline">
+        <span class="mobile-tab-icon">&#9671;</span>
+        <span>Timeline</span>
+        <span class="mobile-tab-count" id="mob-event-count">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Security overlay panel -->
+  <div id="security-overlay" class="security-overlay hidden">
+    <div class="security-panel">
+      <div class="security-header">
+        <span class="security-title">&#9741; SECURITY STATUS</span>
+        <button id="security-close" class="security-close-btn">&times;</button>
+      </div>
+      <div class="security-body">
+        <!-- Radar + 7-layer status side by side -->
+        <div class="security-top">
+          <div class="radar-container">
+            <svg class="radar" viewBox="0 0 200 200" width="160" height="160">
+              <!-- Radar rings -->
+              <circle cx="100" cy="100" r="90" class="radar-ring"/>
+              <circle cx="100" cy="100" r="65" class="radar-ring"/>
+              <circle cx="100" cy="100" r="40" class="radar-ring"/>
+              <circle cx="100" cy="100" r="15" class="radar-ring"/>
+              <!-- Crosshairs -->
+              <line x1="100" y1="10" x2="100" y2="190" class="radar-cross"/>
+              <line x1="10" y1="100" x2="190" y2="100" class="radar-cross"/>
+              <!-- Sweep beam -->
+              <line x1="100" y1="100" x2="100" y2="10" class="radar-sweep"/>
+              <!-- Blips (populated by JS) -->
+              <g id="radar-blips"></g>
+            </svg>
+          </div>
+          <div class="security-layers">
+            <div class="layer-title">7-LAYER DEFENSE</div>
+            <div class="layer-row" data-layer="1"><span class="layer-num">L1</span><span class="layer-name">ORIGIN GATE</span><span class="layer-status" id="layer-1">&#10003;</span></div>
+            <div class="layer-row" data-layer="2"><span class="layer-num">L2</span><span class="layer-name">PATH GUARD</span><span class="layer-status" id="layer-2">&#10003;</span></div>
+            <div class="layer-row" data-layer="3"><span class="layer-num">L3</span><span class="layer-name">WS VERIFY</span><span class="layer-status" id="layer-3">&#10003;</span></div>
+            <div class="layer-row" data-layer="4"><span class="layer-num">L4</span><span class="layer-name">CONN LIMIT</span><span class="layer-status" id="layer-4">&#10003;</span></div>
+            <div class="layer-row" data-layer="5"><span class="layer-num">L5</span><span class="layer-name">PAYLOAD SIZE</span><span class="layer-status" id="layer-5">&#10003;</span></div>
+            <div class="layer-row" data-layer="6"><span class="layer-num">L6</span><span class="layer-name">FIELD LIMIT</span><span class="layer-status" id="layer-6">&#10003;</span></div>
+            <div class="layer-row" data-layer="7"><span class="layer-num">L7</span><span class="layer-name">TOOL SCAN</span><span class="layer-status" id="layer-7">&#10003;</span></div>
+          </div>
         </div>
-      </form>
+        <!-- Security event log -->
+        <div class="security-log-header">
+          <span>EVENT LOG</span>
+          <button id="security-clear-all" class="sec-clear-btn hidden">CLEAR ALL</button>
+        </div>
+        <div class="security-log" id="security-log">
+          <div class="empty-state">No security events</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Instruction input (bottom bar) -->
-  <footer id="command-bar" class="hidden">
-    <label for="command-input" class="command-label">INSTRUCT &gt;</label>
-    <input type="text" id="command-input" placeholder="Send instruction to selected agent...">
-    <span id="command-target" class="command-target">No agent selected</span>
-  </footer>
+  <!-- Keyboard help (toggle with ?) -->
+  <div id="kbd-help" class="kbd-overlay hidden">
+    <div class="kbd-content">
+      <div class="kbd-title">KEYBOARD SHORTCUTS</div>
+      <div class="kbd-grid">
+        <kbd>Tab</kbd><span class="kbd-desc">Cycle panels</span>
+        <kbd>j / k</kbd><span class="kbd-desc">Navigate rows</span>
+        <kbd>Enter</kbd><span class="kbd-desc">Select agent / expand mission</span>
+        <kbd>n</kbd><span class="kbd-desc">New mission</span>
+        <kbd>i</kbd><span class="kbd-desc">Send instruction to agent</span>
+        <kbd>/</kbd><span class="kbd-desc">Clear timeline filter</span>
+        <kbd>Esc</kbd><span class="kbd-desc">Cancel / close</span>
+        <kbd>?</kbd><span class="kbd-desc">Toggle this help</span>
+      </div>
+      <div class="kbd-footer">Click outside to close</div>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
+  <script src="/security.js"></script>
 </body>
 </html>

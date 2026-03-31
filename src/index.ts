@@ -75,12 +75,16 @@ function getHookScriptPath(): string {
 }
 
 function readSettings(): ClaudeSettings {
-  try {
-    const raw = fs.readFileSync(SETTINGS_PATH, 'utf-8');
-    return JSON.parse(raw) as ClaudeSettings;
-  } catch {
+  if (!fs.existsSync(SETTINGS_PATH)) {
     return {};
   }
+  const raw = fs.readFileSync(SETTINGS_PATH, 'utf-8');
+  if (raw.trim().length === 0) {
+    return {};
+  }
+  // Let JSON.parse throw on corrupt files — caller sees the error
+  // rather than silently overwriting the user's settings
+  return JSON.parse(raw) as ClaudeSettings;
 }
 
 function writeSettings(settings: ClaudeSettings): void {
@@ -134,6 +138,36 @@ function buildHookEntries(): { event: string; entry: HookEntry }[] {
       },
     },
     {
+      event: 'SubagentStart',
+      entry: {
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: `node "${hookScript}"`,
+            async: true,
+            timeout: 5,
+          },
+        ],
+        description: 'Mission Control: report subagent spawn',
+      },
+    },
+    {
+      event: 'SubagentStop',
+      entry: {
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: `node "${hookScript}"`,
+            async: true,
+            timeout: 5,
+          },
+        ],
+        description: 'Mission Control: report subagent end',
+      },
+    },
+    {
       event: 'Stop',
       entry: {
         matcher: '*',
@@ -175,9 +209,11 @@ function installHooks(): void {
   writeSettings(settings);
 
   console.log('  Hooks installed:');
-  console.log('    - PreToolUse  -> report events + fetch instructions');
-  console.log('    - PostToolUse -> report tool completion');
-  console.log('    - Stop        -> report session end');
+  console.log('    - PreToolUse     -> report events + fetch instructions');
+  console.log('    - PostToolUse    -> report tool completion');
+  console.log('    - SubagentStart  -> report subagent spawn');
+  console.log('    - SubagentStop   -> report subagent end');
+  console.log('    - Stop           -> report session end');
   console.log(`\n  Settings: ${SETTINGS_PATH}\n`);
 }
 

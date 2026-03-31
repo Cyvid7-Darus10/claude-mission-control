@@ -5,11 +5,21 @@ import type { Agent, Event, Mission, Instruction } from "../db";
 // Event type map
 // ---------------------------------------------------------------------------
 
+export interface SecurityEvent {
+  readonly layer: number;
+  readonly layerName: string;
+  readonly severity: 'info' | 'warn' | 'critical';
+  readonly message: string;
+  readonly detail: string | null;
+  readonly timestamp: string;
+}
+
 interface EventBusEvents {
   "agent:update": Agent;
   "event:new": Event;
   "mission:update": Mission;
   "instruction:new": Instruction;
+  "security:event": SecurityEvent;
 }
 
 type EventName = keyof EventBusEvents;
