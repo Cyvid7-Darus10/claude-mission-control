@@ -98,9 +98,14 @@ function autoMission(
       }
     }
 
-    // Skip — no meaningful title derived
-    // We intentionally don't create missions from Read/Edit/Bash/Grep tool calls
-    // because "Read server.ts" or "git status" is not a mission.
+    // Main agent: create mission from project folder name
+    // This gives every session a mission without noisy tool-level details
+    if (!title && cwd) {
+      const project = cwd.split('/').filter(Boolean).pop();
+      if (project && project.length >= 2) {
+        title = project;
+      }
+    }
 
     if (!title) return;
 
