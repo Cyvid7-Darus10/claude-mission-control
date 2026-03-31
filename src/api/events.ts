@@ -41,11 +41,13 @@ function autoMission(
 
     // Also check DB — handles server restarts where in-memory set is empty
     const existingMissions = getMissions();
+
+    // Skip if this exact agent already has an active mission
     const hasActiveMission = existingMissions.some(
       (m) => m.assigned_agent_id === compositeId && (m.status === 'active' || m.status === 'queued')
     );
     if (hasActiveMission) {
-      agentMissionCreated.add(compositeId); // sync in-memory with DB
+      agentMissionCreated.add(compositeId);
       return;
     }
 
@@ -66,8 +68,15 @@ function autoMission(
       }
       if (typeof input.description === 'string' && input.description.length > 0) {
         title = input.description;
-      } else if (typeof input.prompt === 'string' && input.prompt.length > 0) {
-        title = input.prompt.length > 80 ? input.prompt.slice(0, 77) + '...' : input.prompt;
+      }
+      // Only use prompt if it looks like a human sentence, not a command/path
+      if (!title && typeof input.prompt === 'string' && input.prompt.length > 0) {
+        const p = input.prompt.trim();
+        // Skip if it looks like a command, path, or URL
+        const looksLikeCommand = /^[a-z]+\s+[\-\/]/.test(p) || p.startsWith('/') || p.startsWith('http') || p.includes('|') || p.includes('>');
+        if (!looksLikeCommand && p.length >= 10) {
+          title = p.length > 80 ? p.slice(0, 77) + '...' : p;
+        }
       }
     }
 
@@ -80,9 +89,9 @@ function autoMission(
     // Cap title length
     if (title.length > 100) title = title.slice(0, 97) + '...';
 
-    // Deduplicate by title — don't create "Auth middleware" if one already exists
+    // Deduplicate by title — don't create if same title exists in any status
     const titleExists = existingMissions.some(
-      (m) => m.title === title && (m.status === 'active' || m.status === 'queued')
+      (m) => m.title === title
     );
     if (titleExists) {
       agentMissionCreated.add(compositeId);
