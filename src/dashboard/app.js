@@ -324,20 +324,37 @@
     });
   }
 
+  function getEventDetail(evt) {
+    var input = evt.tool_input;
+    if (!input) return '';
+    if (typeof input === 'string') {
+      try { input = JSON.parse(input); } catch(e) { return ''; }
+    }
+    if (input.file_path) return input.file_path.split('/').slice(-2).join('/');
+    if (input.command) {
+      var cmd = input.command;
+      return cmd.length > 60 ? cmd.substring(0, 57) + '...' : cmd;
+    }
+    if (input.pattern) return input.pattern;
+    return '';
+  }
+
   function buildTimelineRowEl(evt) {
     var time = formatTime(evt.timestamp);
     var agentLabel = evt.agent_id || 'unknown';
     var color = getAgentColor(agentLabel);
     var toolName = evt.tool_name || '';
-    var eventType = evt.event_type || '';
+    var detail = getEventDetail(evt);
 
     var timeEl = createEl('span', { className: 'timeline-time', textContent: time });
     var agentEl = createEl('span', { className: 'timeline-agent', style: 'color:' + color, textContent: agentLabel });
 
     var eventEl = createEl('span', { className: 'timeline-event' });
-    eventEl.appendChild(document.createTextNode(eventType + ' '));
     if (toolName) {
       eventEl.appendChild(createEl('span', { className: 'timeline-tool', textContent: toolName }));
+    }
+    if (detail) {
+      eventEl.appendChild(document.createTextNode(' ' + detail));
     }
 
     return createEl('div', { className: 'timeline-row' }, [timeEl, agentEl, eventEl]);

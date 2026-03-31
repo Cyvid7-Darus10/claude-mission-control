@@ -100,10 +100,10 @@ async function main() {
     // Invalid JSON on stdin — proceed with empty object
   }
 
-  // 2. Determine event context from environment
-  const eventType = process.env.CLAUDE_HOOK_EVENT_NAME || 'unknown';
-  const sessionId = process.env.CLAUDE_SESSION_ID || 'unknown';
-  const model = process.env.CLAUDE_MODEL || null;
+  // 2. Determine event context from environment + stdin
+  const eventType = process.env.CLAUDE_HOOK_EVENT_NAME || stdinData.hook_event_name || 'unknown';
+  const sessionId = process.env.CLAUDE_SESSION_ID || stdinData.session_id || process.ppid?.toString() || 'unknown';
+  const model = process.env.CLAUDE_MODEL || stdinData.model || null;
   const cwd = process.cwd();
 
   // 3. Extract agent_id from stdin JSON (default 'main')
