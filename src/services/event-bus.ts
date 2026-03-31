@@ -5,7 +5,7 @@ import type { Agent, Event, Mission, Instruction } from "../db";
 // Event type map
 // ---------------------------------------------------------------------------
 
-export interface EventBusEvents {
+interface EventBusEvents {
   "agent:update": Agent;
   "event:new": Event;
   "mission:update": Mission;
@@ -18,7 +18,7 @@ type EventName = keyof EventBusEvents;
 // Typed EventEmitter wrapper
 // ---------------------------------------------------------------------------
 
-export class EventBus {
+class EventBus {
   private readonly emitter = new EventEmitter();
 
   constructor() {

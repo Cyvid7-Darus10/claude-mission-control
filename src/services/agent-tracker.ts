@@ -19,7 +19,7 @@ const CHECK_INTERVAL_MS = 10_000; // 10 seconds
 // Agent Tracker
 // ---------------------------------------------------------------------------
 
-export class AgentTracker {
+class AgentTracker {
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
 
   /**
