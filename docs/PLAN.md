@@ -185,20 +185,65 @@ claude-mission-control/
 | 9 | `src/api/missions.ts` | CRUD + assign agent + complete/fail + list blocked/ready |
 | 10 | `src/api/instructions.ts` | POST to queue message, GET to deliver (atomic read+mark) |
 
-### Phase 4: Dashboard UI
+### Phase 4: Dashboard UI — Terminal-Style Web Interface
+
+**Design philosophy:** Looks like a military command center terminal. Speed and smoothness are the top priority. No flashy UI frameworks — raw performance.
+
+**Visual style:**
+- Monospace font only (`JetBrains Mono` or `Fira Code`, fallback `monospace`)
+- Black background (`#0a0a0a`), green/amber/cyan text
+- No rounded corners, no shadows, no gradients
+- Borders use box-drawing characters (`┌─┐│└─┘`)
+- Blinking cursor on active elements
+- Scanline overlay (subtle CSS effect)
+- Status indicators: `●` green (active), `○` yellow (idle), `✕` red (failed), `◌` gray (disconnected)
+- All text left-aligned, fixed-width columns
+- Animations: typewriter text reveal, smooth scroll, no transitions > 100ms
+
+**Layout:**
+```
+┌─ MISSION CONTROL ──────────────────────────── 3 agents ● 5 missions ─┐
+├──────────────┬───────────────────────────────────────────────────────-─┤
+│ > AGENTS     │ > MISSIONS                                             │
+│              │                                                        │
+│ ● alpha      │ [QUEUED]  Auth middleware         priority: HIGH        │
+│   editing    │ [ACTIVE]  API routes        ← alpha  02:34 elapsed     │
+│   auth.ts    │ [ACTIVE]  Unit tests        ← bravo  01:12 elapsed     │
+│              │ [DONE]    Project setup      completed 5m ago           │
+│ ● bravo      │ [BLOCKED] E2E tests         waiting on: API routes     │
+│   running    │                                                        │
+│   npm test   │─────────────────────────────────────────────────────────│
+│              │ > TIMELINE                                              │
+│ ○ charlie    │                                                        │
+│   idle 45s   │ 12:34:02 alpha  EDIT  src/middleware/auth.ts            │
+│              │ 12:34:01 bravo  BASH  npm test --coverage               │
+│──────────────│ 12:33:58 alpha  READ  package.json                     │
+│ > SEND MSG   │ 12:33:55 alpha  BASH  git status                       │
+│ to: alpha    │ 12:33:50 charlie READ src/routes/payments.ts           │
+│ > _          │ 12:33:48 alpha  WRITE src/types/auth.d.ts              │
+└──────────────┴────────────────────────────────────────────────────────┘
+```
+
+**Key interactions:**
+- Arrow keys / vim keys to navigate between panels
+- `Tab` to switch focus between Agents / Missions / Timeline
+- `Enter` on agent to filter timeline to that agent
+- `n` to create new mission (inline form, no modal)
+- `i` to send instruction (type in bottom panel)
+- `q` to quit (with confirmation)
+- All keyboard-driven, mouse optional
 
 | Step | File | What |
 |------|------|------|
-| 11 | `src/dashboard/*` | Dark mode embedded UI with: |
-| | | — **Kanban mission board** (Queued → Active → Done → Failed columns) |
-| | | — **Agent panel** with status badges (green/yellow/gray) |
-| | | — **Color-coded activity timeline** (each agent = different color lane) |
-| | | — **Agent decision graph** (toggle: node visualization of tool calls) |
-| | | — **Instruction panel** (send messages to agents) |
-| | | — **Stuck agent alerts** (no progress > 2 min) |
-| | | — **Per-mission cost tracking** with model breakdown |
-| | | — **Dependency arrows** between mission cards |
-| | | — **Anti-pattern detection** (correction spirals, repeated prompts) |
+| 11 | `src/dashboard/*` | Terminal-style embedded web UI with: |
+| | | — **Agent panel** with `●○✕◌` status indicators |
+| | | — **Mission list** with status tags `[QUEUED] [ACTIVE] [DONE] [FAILED] [BLOCKED]` |
+| | | — **Color-coded timeline** (each agent = different color) |
+| | | — **Instruction input** (bottom panel, type and send) |
+| | | — **Stuck agent alerts** (blinking `! STUCK` after 2 min) |
+| | | — **Dependency indicators** (`waiting on: ...` shown inline) |
+| | | — **Keyboard navigation** (arrow keys, tab, vim keys) |
+| | | — **Sub-100ms render** — no React, no virtual DOM, direct DOM manipulation |
 
 ### Phase 5: Hook Installation + CLI
 
@@ -225,29 +270,48 @@ claude-mission-control/
 
 ## Dashboard UI Design
 
+**Style:** Terminal-aesthetic web UI. Monospace only, black background, green/amber/cyan text, box-drawing borders. No rounded corners, no shadows, no gradients. Speed is everything — sub-100ms renders, direct DOM manipulation, no framework.
+
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  MISSION CONTROL                    3 agents ● 5 missions  12:34│
-├──────────┬───────────────────────────────────────────────────────┤
-│          │  QUEUED        ACTIVE         DONE         FAILED     │
-│ AGENTS   │ ┌──────┐     ┌──────┐      ┌──────┐     ┌──────┐    │
-│          │ │Auth  │────→│API   │      │Setup │     │      │    │
-│ ● Alpha  │ │module│     │routes│      │done  │     │      │    │
-│   auth.ts│ └──────┘     └──┬───┘      └──────┘     └──────┘    │
-│          │ ┌──────┐        │                                     │
-│ ● Bravo  │ │Tests │←───────┘                                     │
-│   npm tst│ │suite │                                              │
-│          │ └──────┘                                              │
-│ ○ Charlie│                                                       │
-│   idle   │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
-│          │  TIMELINE                                             │
-│          │  12:34:02 ● Alpha  Edit src/auth.ts                   │
-│ ──────── │  12:34:01 ● Bravo  Bash npm test                     │
-│ + Send   │  12:33:58 ● Alpha  Read package.json                 │
-│ Message  │  12:33:55 ● Alpha  Bash git status                   │
-│          │  12:33:50 ○ Charlie Read src/routes.ts                │
-└──────────┴───────────────────────────────────────────────────────┘
+┌─ MISSION CONTROL ──────────────────────────── 3 agents ● 5 missions ─┐
+├──────────────┬───────────────────────────────────────────────────────-─┤
+│ > AGENTS     │ > MISSIONS                                             │
+│              │                                                        │
+│ ● alpha      │ [QUEUED]  Auth middleware         priority: HIGH        │
+│   editing    │ [ACTIVE]  API routes        ← alpha  02:34 elapsed     │
+│   auth.ts    │ [ACTIVE]  Unit tests        ← bravo  01:12 elapsed     │
+│              │ [DONE]    Project setup      completed 5m ago           │
+│ ● bravo      │ [BLOCKED] E2E tests         waiting on: API routes     │
+│   running    │                                                        │
+│   npm test   │────────────────────────────────────────────────────────│
+│              │ > TIMELINE                                              │
+│ ○ charlie    │                                                        │
+│   idle 45s   │ 12:34:02 alpha  EDIT  src/middleware/auth.ts            │
+│              │ 12:34:01 bravo  BASH  npm test --coverage               │
+│──────────────│ 12:33:58 alpha  READ  package.json                     │
+│ > SEND MSG   │ 12:33:55 alpha  BASH  git status                       │
+│ to: alpha    │ 12:33:50 charlie READ src/routes/payments.ts           │
+│ > _          │ 12:33:48 alpha  WRITE src/types/auth.d.ts              │
+└──────────────┴────────────────────────────────────────────────────────┘
 ```
+
+**Visual elements:**
+- Font: `JetBrains Mono` / `Fira Code` / `monospace`
+- Background: `#0a0a0a`, text: `#00ff41` (green), `#ffb000` (amber), `#00d4ff` (cyan)
+- Borders: box-drawing characters (`┌─┐│└─┘`)
+- Status: `●` active (green), `○` idle (amber), `✕` failed (red), `◌` disconnected (gray)
+- Subtle CRT scanline overlay via CSS
+- Blinking cursor `_` on input fields
+- No animations > 100ms
+
+**Keyboard navigation:**
+- `Tab` — cycle focus: Agents → Missions → Timeline → Send Message
+- `↑↓` / `jk` — navigate within focused panel
+- `Enter` — select agent (filters timeline), expand mission details
+- `n` — new mission (inline form)
+- `i` — focus instruction input
+- `q` — quit (with confirmation)
+- Mouse clicks work too but keyboard is primary
 
 ## Inspiration Sources
 
