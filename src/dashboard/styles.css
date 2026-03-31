@@ -620,6 +620,93 @@ html, body {
   color: var(--warning);
 }
 
+/* ── Mission expanded state + actions ─────────────────── */
+.mission-row.expanded {
+  background: var(--bg-panel);
+  border-left: 2px solid var(--text-secondary);
+  padding-left: 10px;
+}
+
+.mission-desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-top: 4px;
+  padding: 4px 0;
+  line-height: 1.5;
+}
+
+.mission-result {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.mission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.mission-action-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-bright);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 80ms;
+  white-space: nowrap;
+}
+
+.mission-action-btn:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.mission-action-btn.success:hover {
+  color: var(--success);
+  border-color: var(--success-dim);
+}
+
+.mission-action-btn.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger-dim);
+}
+
+.mission-action-btn.start:hover {
+  color: var(--text-bright);
+  border-color: var(--text-secondary);
+}
+
+.mission-agent-select {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-bright);
+  padding: 3px 6px;
+  outline: none;
+  cursor: pointer;
+  max-width: 140px;
+}
+
+.mission-agent-select:focus {
+  border-color: var(--text-muted);
+}
+
+.mission-agent-select option {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+}
+
 .subtask-progress {
   display: flex;
   align-items: center;
