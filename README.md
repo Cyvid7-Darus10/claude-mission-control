@@ -68,21 +68,6 @@ npx tsx src/index.ts
 
 <img src="docs/tapes/start.gif" alt="Server startup" width="700">
 
-```
-  ┌─────────────────────────────────────────┐
-  │  { SENTINEL } MISSION CONTROL v0.1.0    │
-  ├─────────────────────────────────────────┤
-  │                                         │
-  │  Local:   http://localhost:4280          │
-  │  Network: http://192.168.1.42:4280      │
-  │                                         │
-  │  Access Code: 847293                    │
-  │                                         │
-  │  Share the network URL + code with      │
-  │  others on the same WiFi network.       │
-  └─────────────────────────────────────────┘
-```
-
 Open **http://localhost:4280** in your browser. Enter the **6-digit access code** shown in the terminal.
 
 ### Step 4: Share with Your Team (Optional)
