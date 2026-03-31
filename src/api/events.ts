@@ -52,7 +52,12 @@ function autoMission(
     let title: string | null = null;
 
     // SubagentStart: use description
-    if (eventType === 'subagent_start') {
+    // Only create missions from meaningful sources:
+    // 1. SubagentStart — has a human-written description
+    // 2. Agent tool — spawning a subagent with a description
+    // Main agent tool calls (Read, Bash, etc.) are too low-level to be missions.
+
+    if (eventType === 'subagent_start' || toolName === 'Agent') {
       let input: Record<string, unknown> = {};
       if (typeof toolInput === 'string') {
         try { input = JSON.parse(toolInput) as Record<string, unknown>; } catch {}
@@ -61,36 +66,14 @@ function autoMission(
       }
       if (typeof input.description === 'string' && input.description.length > 0) {
         title = input.description;
-      } else if (typeof input.prompt === 'string') {
-        title = input.prompt.length > 60 ? input.prompt.slice(0, 57) + '...' : input.prompt;
+      } else if (typeof input.prompt === 'string' && input.prompt.length > 0) {
+        title = input.prompt.length > 80 ? input.prompt.slice(0, 77) + '...' : input.prompt;
       }
     }
 
-    // Main agent first tool call: derive from project + action
-    if (!title && toolName) {
-      const project = cwd ? cwd.split('/').filter(Boolean).pop() : null;
-      let detail = '';
-      let input: Record<string, unknown> = {};
-      if (typeof toolInput === 'string') {
-        try { input = JSON.parse(toolInput) as Record<string, unknown>; } catch {}
-      } else if (toolInput && typeof toolInput === 'object') {
-        input = toolInput as Record<string, unknown>;
-      }
-
-      if (typeof input.file_path === 'string') {
-        detail = input.file_path.split('/').pop() ?? '';
-      } else if (typeof input.command === 'string') {
-        detail = input.command.length > 40 ? input.command.slice(0, 37) + '...' : input.command;
-      } else if (typeof input.pattern === 'string') {
-        detail = 'searching ' + input.pattern;
-      }
-
-      if (project) {
-        title = project + (detail ? ' — ' + detail : '');
-      } else if (detail) {
-        title = toolName + ' ' + detail;
-      }
-    }
+    // Skip — no meaningful title derived
+    // We intentionally don't create missions from Read/Edit/Bash/Grep tool calls
+    // because "Read server.ts" or "git status" is not a mission.
 
     if (!title) return;
 
