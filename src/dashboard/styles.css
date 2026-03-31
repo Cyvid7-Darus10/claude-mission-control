@@ -642,6 +642,36 @@ html, body {
   font-style: italic;
 }
 
+/* ── Goal checklist style ──────────────────────────────── */
+.goal-check {
+  flex-shrink: 0;
+  font-size: 11px;
+  width: 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.goal-check.checked {
+  color: var(--success);
+}
+
+.mission-title.strikethrough {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.mission-row.done {
+  opacity: 0.5;
+}
+
+.mission-action-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  width: 100%;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
 .mission-footer-row {
   display: flex;
   gap: 6px;
