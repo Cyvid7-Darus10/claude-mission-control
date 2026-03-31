@@ -19,10 +19,10 @@ from datetime import datetime, timezone
 
 import db
 
-log = logging.getLogger("devfleet.scheduler")
+log = logging.getLogger("mission_control.scheduler")
 
 _scheduler_task: asyncio.Task | None = None
-CHECK_INTERVAL = int(os.environ.get("DEVFLEET_SCHEDULER_INTERVAL", "60"))
+CHECK_INTERVAL = int(os.environ.get("MISSION_CONTROL_SCHEDULER_INTERVAL", "60"))
 
 # Lightweight cron matching — no external dependency needed
 # Supports: minute hour day_of_month month day_of_week

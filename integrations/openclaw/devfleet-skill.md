@@ -1,8 +1,8 @@
-# DevFleet Multi-Agent Orchestration
+# Mission Control Multi-Agent Orchestration
 
-You have access to a running Claude DevFleet instance via MCP tools. DevFleet dispatches multiple Claude Code agents to work on coding tasks in parallel, each in an isolated git worktree.
+You have access to a running Claude Mission Control instance via MCP tools. Mission Control dispatches multiple Claude Code agents to work on coding tasks in parallel, each in an isolated git worktree.
 
-Use the `mcp__devfleet__*` tools to plan projects, dispatch agents, and monitor their work.
+Use the `mcp__mission_control__*` tools to plan projects, dispatch agents, and monitor their work.
 
 ## Tools
 
@@ -26,7 +26,7 @@ Use the `mcp__devfleet__*` tools to plan projects, dispatch agents, and monitor 
 
 When the user describes something to build, call:
 ```
-mcp__devfleet__plan_project(prompt="<user's description>")
+mcp__mission_control__plan_project(prompt="<user's description>")
 ```
 This returns a `project_id` and a list of missions with dependency chains (`depends_on`).
 
@@ -39,7 +39,7 @@ This returns a `project_id` and a list of missions with dependency chains (`depe
 
 After the user approves (or says "go ahead"), dispatch the root mission:
 ```
-mcp__devfleet__dispatch_mission(mission_id="<first_mission_id>")
+mcp__mission_control__dispatch_mission(mission_id="<first_mission_id>")
 ```
 The remaining missions auto-dispatch as their dependencies complete. You do not need to dispatch them manually.
 
@@ -47,24 +47,24 @@ The remaining missions auto-dispatch as their dependencies complete. You do not 
 
 Check what's running:
 ```
-mcp__devfleet__get_dashboard()
+mcp__mission_control__get_dashboard()
 ```
 
 Check a specific mission:
 ```
-mcp__devfleet__get_mission_status(mission_id="<id>")
+mcp__mission_control__get_mission_status(mission_id="<id>")
 ```
 
 ### Step 4: Wait and report
 
 If you need the result before proceeding:
 ```
-mcp__devfleet__wait_for_mission(mission_id="<id>", timeout_seconds=600)
+mcp__mission_control__wait_for_mission(mission_id="<id>", timeout_seconds=600)
 ```
 
 Read the structured report:
 ```
-mcp__devfleet__get_report(mission_id="<id>")
+mcp__mission_control__get_report(mission_id="<id>")
 ```
 
 Report highlights to the user: files changed, what was done, what's tested, any errors, next steps.

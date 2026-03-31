@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getMission, updateMission, deleteMission, generateNextMission, listSessions, getMissionEvents, setMissionSchedule, removeMissionSchedule } from '../api/client';
+import { getMission, updateMission, deleteMission, generateNextMission, getMissionEvents, setMissionSchedule, removeMissionSchedule } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 import PromptEditor from '../components/PromptEditor';
 import ReportView from '../components/ReportView';

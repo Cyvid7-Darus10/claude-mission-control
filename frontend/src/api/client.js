@@ -40,20 +40,6 @@ export const setMissionSchedule = (id, cron) =>
 export const removeMissionSchedule = (id) =>
   request(`/missions/${id}/schedule`, { method: 'DELETE' });
 
-// ── Sessions ──
-export function listSessions(filters = {}) {
-  const params = new URLSearchParams();
-  if (filters.mission_id) params.set('mission_id', filters.mission_id);
-  if (filters.status) params.set('status', filters.status);
-  const qs = params.toString();
-  return request(`/sessions${qs ? '?' + qs : ''}`);
-}
-export const getSession = (id) => request(`/sessions/${id}`);
-export const createSession = (missionId, model) =>
-  request('/sessions', { method: 'POST', body: JSON.stringify({ mission_id: missionId, model }) });
-export const updateSession = (sessionId, data) =>
-  request(`/sessions/${sessionId}`, { method: 'PUT', body: JSON.stringify(data) });
-
 // ── Reports ──
 export function listReports(filters = {}) {
   const params = new URLSearchParams();
@@ -62,8 +48,6 @@ export function listReports(filters = {}) {
   const qs = params.toString();
   return request(`/reports${qs ? '?' + qs : ''}`);
 }
-export const submitReport = (missionId, data) =>
-  request(`/missions/${missionId}/reports`, { method: 'POST', body: JSON.stringify(data) });
 
 // ── Dashboard ──
 export const getDashboardStats = () => request('/dashboard/stats');

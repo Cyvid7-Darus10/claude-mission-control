@@ -1,7 +1,7 @@
 """
-Claude DevFleet Plugin System — Drop-in extensibility.
+Claude Mission Control Plugin System — Drop-in extensibility.
 
-Developers can extend DevFleet by:
+Developers can extend Mission Control by:
 1. Dropping Python files into `plugins/` directory
 2. Each plugin registers lifecycle hooks
 3. Plugins are auto-loaded at startup
@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-log = logging.getLogger("devfleet.plugins")
+log = logging.getLogger("mission_control.plugins")
 
 
 class PluginRegistry:
@@ -84,11 +84,11 @@ registry = PluginRegistry()
 
 def _plugins_dir() -> Path:
     """Resolve plugins directory — next to backend/ or via env var."""
-    custom = os.environ.get("DEVFLEET_PLUGINS_DIR")
+    custom = os.environ.get("MISSION_CONTROL_PLUGINS_DIR")
     if custom:
         return Path(custom)
-    devfleet_root = Path(__file__).parent.parent
-    return devfleet_root / "plugins"
+    project_root = Path(__file__).parent.parent
+    return project_root / "plugins"
 
 
 def load_plugins():
@@ -110,7 +110,7 @@ def load_plugins():
         try:
             if entry.is_file() and entry.suffix == ".py" and not entry.name.startswith("_"):
                 name = entry.stem
-                spec = importlib.util.spec_from_file_location(f"devfleet_plugin_{name}", entry)
+                spec = importlib.util.spec_from_file_location(f"mc_plugin_{name}", entry)
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
 
@@ -125,7 +125,7 @@ def load_plugins():
             elif entry.is_dir() and (entry / "__init__.py").exists():
                 name = entry.name
                 spec = importlib.util.spec_from_file_location(
-                    f"devfleet_plugin_{name}",
+                    f"mc_plugin_{name}",
                     entry / "__init__.py",
                     submodule_search_locations=[str(entry)],
                 )
@@ -146,20 +146,3 @@ def load_plugins():
     log.info(f"Loaded {loaded} plugin(s)")
 
 
-async def run_hooks(event: str, *args, **kwargs):
-    """Run all hooks registered for an event. Returns modified first arg if applicable."""
-    hooks = registry._hooks.get(event, [])
-    result = args[0] if args else None
-
-    for hook_fn in hooks:
-        try:
-            ret = await hook_fn(*args, **kwargs)
-            # For pre_* hooks, allow modifying the input
-            if event.startswith("pre_") and ret is not None:
-                result = ret
-                # Update args for next hook in chain
-                args = (result,) + args[1:]
-        except Exception:
-            log.exception(f"Plugin hook {event}:{hook_fn.__name__} failed")
-
-    return result

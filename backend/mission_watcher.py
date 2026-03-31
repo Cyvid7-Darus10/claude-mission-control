@@ -18,10 +18,10 @@ from datetime import datetime, timezone
 
 import db
 
-log = logging.getLogger("devfleet.mission_watcher")
+log = logging.getLogger("mission_control.mission_watcher")
 
 _watcher_task: asyncio.Task | None = None
-POLL_INTERVAL = int(os.environ.get("DEVFLEET_WATCHER_INTERVAL", "5"))
+POLL_INTERVAL = int(os.environ.get("MISSION_CONTROL_WATCHER_INTERVAL", "5"))
 
 
 async def _find_eligible_missions() -> list[dict]:

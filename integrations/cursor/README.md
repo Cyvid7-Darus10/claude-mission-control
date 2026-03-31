@@ -1,10 +1,10 @@
-# DevFleet MCP Server for Cursor
+# Mission Control MCP Server for Cursor
 
-Use Claude DevFleet as a multi-agent backend from Cursor. Dispatch coding agents, plan projects, and read mission reports through Cursor's MCP integration.
+Use Claude Mission Control as a multi-agent backend from Cursor. Dispatch coding agents, plan projects, and read mission reports through Cursor's MCP integration.
 
 ## Prerequisites
 
-- Claude DevFleet API running (default: `http://localhost:18801`)
+- Claude Mission Control API running (default: `http://localhost:18801`)
 - Cursor with MCP support enabled
 
 ## Setup
@@ -15,11 +15,11 @@ Use Claude DevFleet as a multi-agent backend from Cursor. Dispatch coding agents
 2. Navigate to **Features** > **MCP Servers**.
 3. Click **Add new MCP server**.
 
-### Step 2: Add DevFleet
+### Step 2: Add Mission Control
 
 Configure the server with these values:
 
-- **Name**: `devfleet`
+- **Name**: `mission-control`
 - **Type**: `http`
 - **URL**: `http://localhost:18801/mcp`
 
@@ -28,7 +28,7 @@ Alternatively, add it directly to your project's `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "url": "http://localhost:18801/mcp"
     }
@@ -40,10 +40,10 @@ Or to your global Cursor config at `~/.cursor/mcp.json` for access in all projec
 
 ### Step 3: Verify
 
-After adding the server, Cursor should show the DevFleet tools in its MCP tool list. You can verify by asking Cursor's AI:
+After adding the server, Cursor should show the Mission Control tools in its MCP tool list. You can verify by asking Cursor's AI:
 
 ```
-List the available DevFleet tools
+List the available Mission Control tools
 ```
 
 ## Available Tools
@@ -67,30 +67,30 @@ List the available DevFleet tools
 ### Plan and dispatch
 
 ```
-Use DevFleet to plan a project: "Build a FastAPI microservice with PostgreSQL,
+Use Mission Control to plan a project: "Build a FastAPI microservice with PostgreSQL,
 JWT auth, and comprehensive tests". Then dispatch the first mission.
 ```
 
 ### Monitor progress
 
 ```
-Show me the DevFleet dashboard. What agents are running?
+Show me the Mission Control dashboard. What agents are running?
 ```
 
 ### Read results
 
 ```
-Get the report for DevFleet mission <paste-mission-id-here>
+Get the report for Mission Control mission <paste-mission-id-here>
 ```
 
 ## Docker / Remote Access
 
-If DevFleet runs in Docker or on a remote host, update the URL accordingly:
+If Mission Control runs in Docker or on a remote host, update the URL accordingly:
 
 ```json
 {
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "url": "http://<host>:<port>/mcp"
     }
@@ -102,11 +102,11 @@ The default Docker Compose setup exposes the API on port `18801`.
 
 ## Troubleshooting
 
-**Server not connecting**: Confirm the DevFleet API is reachable:
+**Server not connecting**: Confirm the Mission Control API is reachable:
 ```bash
 curl http://localhost:18801/api/dashboard
 ```
 
 **Tools not showing up**: Restart Cursor after adding the MCP server. Check the MCP Servers panel in settings for connection status.
 
-**"Agent slots full"**: DevFleet defaults to 3 concurrent agents. Use `get_dashboard` to check slot usage. Wait for missions to finish or cancel one with `cancel_mission`.
+**"Agent slots full"**: Mission Control defaults to 3 concurrent agents. Use `get_dashboard` to check slot usage. Wait for missions to finish or cancel one with `cancel_mission`.

@@ -1,6 +1,6 @@
-# DevFleet Skill for Claude Code (ECC)
+# Mission Control Skill for Claude Code (ECC)
 
-Use Claude DevFleet as a multi-agent backend from Claude Code. Plan projects, dispatch agents, and monitor missions — all from your terminal.
+Use Claude Mission Control as a multi-agent backend from Claude Code. Plan projects, dispatch agents, and monitor missions — all from your terminal.
 
 ## How It Works
 
@@ -8,7 +8,7 @@ Use Claude DevFleet as a multi-agent backend from Claude Code. Plan projects, di
 sequenceDiagram
     participant U as User
     participant C as Claude Code
-    participant D as DevFleet MCP
+    participant D as Mission Control MCP
     participant A1 as Agent 1 (Worktree)
     participant A2 as Agent 2 (Worktree)
 
@@ -29,12 +29,12 @@ sequenceDiagram
 
 ## Prerequisites
 
-- Claude DevFleet API running (default: `http://localhost:18801`)
+- Claude Mission Control API running (default: `http://localhost:18801`)
 - Claude Code (CLI) installed
 
-## Step 1: Add DevFleet as an MCP Server
+## Step 1: Add Mission Control as an MCP Server
 
-DevFleet exposes an MCP server via Streamable HTTP at `/mcp`. Add it to your Claude Code configuration.
+Mission Control exposes an MCP server via Streamable HTTP at `/mcp`. Add it to your Claude Code configuration.
 
 ### Option A: Project-level (recommended)
 
@@ -43,7 +43,7 @@ Add to `.claude/settings.json` in your project:
 ```json
 {
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "url": "http://localhost:18801/mcp"
     }
@@ -53,12 +53,12 @@ Add to `.claude/settings.json` in your project:
 
 ### Option B: User-level
 
-Add to `~/.claude/settings.json` to make DevFleet available in all projects:
+Add to `~/.claude/settings.json` to make Mission Control available in all projects:
 
 ```json
 {
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "url": "http://localhost:18801/mcp"
     }
@@ -69,7 +69,7 @@ Add to `~/.claude/settings.json` to make DevFleet available in all projects:
 ### Option C: CLI flag
 
 ```bash
-claude mcp add devfleet --transport http http://localhost:18801/mcp
+claude mcp add mission-control --transport http http://localhost:18801/mcp
 ```
 
 ## Step 2: Install the Skill
@@ -79,16 +79,16 @@ Copy the skill file into your Claude Code commands directory:
 ```bash
 # Project-level (available in this project only)
 mkdir -p .claude/commands
-cp integrations/ecc/devfleet.md .claude/commands/devfleet.md
+cp integrations/ecc/devfleet.md .claude/commands/mission-control.md
 
 # User-level (available in all projects)
 mkdir -p ~/.claude/commands
-cp integrations/ecc/devfleet.md ~/.claude/commands/devfleet.md
+cp integrations/ecc/devfleet.md ~/.claude/commands/mission-control.md
 ```
 
 ## Step 3: Verify
 
-Start Claude Code and confirm DevFleet tools are available:
+Start Claude Code and confirm Mission Control tools are available:
 
 ```bash
 claude
@@ -97,13 +97,13 @@ claude
 Then try:
 
 ```
-/devfleet Build a CLI todo app in Python with SQLite storage and tests
+/mission-control Build a CLI todo app in Python with SQLite storage and tests
 ```
 
 Or use the tools directly in conversation:
 
 ```
-Use devfleet to plan a project: "REST API with user auth and rate limiting"
+Use mission-control to plan a project: "REST API with user auth and rate limiting"
 ```
 
 ## Example Usage
@@ -111,7 +111,7 @@ Use devfleet to plan a project: "REST API with user auth and rate limiting"
 ### Plan and launch a project
 
 ```
-> /devfleet Create a markdown blog engine with static site generation
+> /mission-control Create a markdown blog engine with static site generation
 
 Claude will:
 1. Call plan_project to break it into missions
@@ -123,7 +123,7 @@ Claude will:
 ### Check on running work
 
 ```
-> What's running in DevFleet right now?
+> What's running in Mission Control right now?
 
 Claude calls get_dashboard and summarizes active agents, slot usage, and recent completions.
 ```
@@ -138,11 +138,11 @@ Claude calls get_report and presents the structured results: what was done, file
 
 ## Troubleshooting
 
-**"Connection refused" errors**: Make sure the DevFleet API is running on port 18801. Check with:
+**"Connection refused" errors**: Make sure the Mission Control API is running on port 18801. Check with:
 ```bash
 curl http://localhost:18801/api/dashboard
 ```
 
 **Tools not appearing**: Restart Claude Code after adding the MCP server config. Check that the SSE endpoint is reachable.
 
-**Agent slots full**: DevFleet defaults to 3 concurrent agents. Check `get_dashboard` for slot usage. Wait for running missions to complete or cancel one with `cancel_mission`.
+**Agent slots full**: Mission Control defaults to 3 concurrent agents. Check `get_dashboard` for slot usage. Wait for running missions to complete or cancel one with `cancel_mission`.

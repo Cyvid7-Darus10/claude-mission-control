@@ -4,7 +4,7 @@ const INTEGRATIONS = [
   {
     id: 'claude-code',
     name: 'Claude Code',
-    description: 'Use DevFleet directly from the Claude Code CLI or as a slash command. Plan projects, dispatch agents, and read reports — all from your terminal.',
+    description: 'Use Mission Control directly from the Claude Code CLI or as a slash command. Plan projects, dispatch agents, and read reports — all from your terminal.',
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
@@ -14,13 +14,13 @@ const INTEGRATIONS = [
     setupMethods: [
       {
         label: 'CLI (recommended)',
-        command: 'claude mcp add devfleet --transport http http://localhost:18801/mcp',
+        command: 'claude mcp add mission-control --transport http http://localhost:18801/mcp',
       },
       {
         label: 'Project config (.claude/settings.json)',
         code: `{
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "url": "http://localhost:18801/mcp"
     }
@@ -29,17 +29,17 @@ const INTEGRATIONS = [
       },
     ],
     skillSetup: {
-      description: 'Install the DevFleet slash command for quick access:',
-      command: 'mkdir -p .claude/commands && cp integrations/ecc/devfleet.md .claude/commands/devfleet.md',
-      usage: '/devfleet Build a REST API with auth and tests',
+      description: 'Install the Mission Control slash command for quick access:',
+      command: 'mkdir -p .claude/commands && cp integrations/ecc/mission-control.md .claude/commands/mission-control.md',
+      usage: '/mission-control Build a REST API with auth and tests',
     },
-    docsUrl: 'https://github.com/LEC-AI/claude-devfleet/tree/main/integrations/ecc',
+    docsUrl: 'https://github.com/LEC-AI/claude-mission-control/tree/main/integrations/ecc',
     features: ['Slash command support', 'Skill system integration', 'Full MCP tool access', 'Auto-dispatch chains'],
   },
   {
     id: 'openclaw',
     name: 'OpenClaw / NanoClaw',
-    description: 'Trigger DevFleet from the NanoClaw REPL. Load the DevFleet skill, describe what to build, and NanoClaw orchestrates the full plan-dispatch-report cycle.',
+    description: 'Trigger Mission Control from the NanoClaw REPL. Load the Mission Control skill, describe what to build, and NanoClaw orchestrates the full plan-dispatch-report cycle.',
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2a5 5 0 015 5v1a5 5 0 01-10 0V7a5 5 0 015-5z" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><path d="M9 9h.01" /><path d="M15 9h.01" /><path d="M12 13v3" /><path d="M7 16.5S4 18 4 20h16c0-2-3-3.5-3-3.5" />
@@ -49,25 +49,25 @@ const INTEGRATIONS = [
     setupMethods: [
       {
         label: 'Register MCP server',
-        command: 'claude mcp add devfleet --transport http http://localhost:18801/mcp',
+        command: 'claude mcp add mission-control --transport http http://localhost:18801/mcp',
       },
       {
         label: 'Install skill',
-        command: 'cp integrations/openclaw/devfleet-skill.md /path/to/ecc/skills/claude-devfleet/SKILL.md',
+        command: 'cp integrations/openclaw/mission-control-skill.md /path/to/ecc/skills/claude-mission-control/SKILL.md',
       },
     ],
     skillSetup: {
       description: 'Launch with the skill pre-loaded:',
-      command: 'CLAW_SKILLS=claude-devfleet node scripts/claw.js',
-      usage: 'Use DevFleet to build a Python CLI tool that converts CSV to JSON.',
+      command: 'CLAW_SKILLS=claude-mission-control node scripts/claw.js',
+      usage: 'Use Mission Control to build a Python CLI tool that converts CSV to JSON.',
     },
-    docsUrl: 'https://github.com/LEC-AI/claude-devfleet/tree/main/integrations/openclaw',
+    docsUrl: 'https://github.com/LEC-AI/claude-mission-control/tree/main/integrations/openclaw',
     features: ['REPL-driven workflow', 'Skill auto-loading', 'Plan approval loop', 'Auto-dispatch chains'],
   },
   {
     id: 'cursor',
     name: 'Cursor',
-    description: 'Add DevFleet as an MCP server in Cursor. Dispatch coding agents, plan projects, and read mission reports through Cursor\'s AI chat.',
+    description: 'Add Mission Control as an MCP server in Cursor. Dispatch coding agents, plan projects, and read mission reports through Cursor\'s AI chat.',
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
@@ -83,7 +83,7 @@ const INTEGRATIONS = [
         label: 'Project config (.cursor/mcp.json)',
         code: `{
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "url": "http://localhost:18801/mcp"
     }
@@ -91,13 +91,13 @@ const INTEGRATIONS = [
 }`,
       },
     ],
-    docsUrl: 'https://github.com/LEC-AI/claude-devfleet/tree/main/integrations/cursor',
+    docsUrl: 'https://github.com/LEC-AI/claude-mission-control/tree/main/integrations/cursor',
     features: ['Native MCP support', 'AI chat integration', 'Project & global config', 'All 11 tools available'],
   },
   {
     id: 'windsurf',
     name: 'Windsurf',
-    description: 'Connect Windsurf (Codeium) to DevFleet via MCP. Use Cascade to plan and dispatch multi-agent coding tasks from your editor.',
+    description: 'Connect Windsurf (Codeium) to Mission Control via MCP. Use Cascade to plan and dispatch multi-agent coding tasks from your editor.',
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17.7 7.7a7.5 7.5 0 10-10.6 10.6" /><path d="M21 12h-2" /><path d="M12 3v2" /><path d="M4.2 4.2l1.4 1.4" /><circle cx="12" cy="12" r="3" />
@@ -109,20 +109,20 @@ const INTEGRATIONS = [
         label: 'Windsurf MCP config (~/.codeium/windsurf/mcp_config.json)',
         code: `{
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "serverUrl": "http://localhost:18801/mcp"
     }
   }
 }`,
       },
     ],
-    docsUrl: 'https://github.com/LEC-AI/claude-devfleet',
+    docsUrl: 'https://github.com/LEC-AI/claude-mission-control',
     features: ['Cascade AI integration', 'MCP tool access', 'Project orchestration'],
   },
   {
     id: 'custom-mcp',
     name: 'Any MCP Client',
-    description: 'DevFleet exposes a standard MCP server via Streamable HTTP. Any MCP-compatible client can connect and use all 11 orchestration tools.',
+    description: 'Mission Control exposes a standard MCP server via Streamable HTTP. Any MCP-compatible client can connect and use all 11 orchestration tools.',
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
@@ -142,7 +142,7 @@ Header: mcp-session-id (auto-assigned)`,
 POST messages: http://localhost:18801/mcp/messages/`,
       },
     ],
-    docsUrl: 'https://github.com/LEC-AI/claude-devfleet',
+    docsUrl: 'https://github.com/LEC-AI/claude-mission-control',
     features: ['11 orchestration tools', 'Streamable HTTP transport', 'SSE backward compat', 'JSON-RPC 2.0'],
   },
 ];
@@ -177,7 +177,7 @@ export default function Integrations({ navigate }) {
       <div className="page-header">
         <div>
           <h2>Integrations</h2>
-          <p>Connect DevFleet to your favorite editor or agent framework via MCP</p>
+          <p>Connect Mission Control to your favorite editor or agent framework via MCP</p>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ export default function Integrations({ navigate }) {
           {[
             { label: 'Your Editor / REPL', sub: 'Claude Code, Cursor, etc.', color: 'var(--accent)' },
             { label: 'MCP Protocol', sub: 'Streamable HTTP', color: 'var(--text-dim)', isArrow: true },
-            { label: 'DevFleet API', sub: ':18801/mcp', color: 'var(--success)' },
+            { label: 'Mission Control API', sub: ':18801/mcp', color: 'var(--success)' },
             { label: 'Mission DAG', sub: 'Plan + Dependencies', color: 'var(--text-dim)', isArrow: true },
             { label: 'Agent Worktrees', sub: 'Isolated git branches', color: 'var(--warning)' },
           ].map((step, i) =>
@@ -450,7 +450,7 @@ export default function Integrations({ navigate }) {
           </span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.5 }}>
-          These tools are available to any MCP client connected to DevFleet at <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>http://localhost:18801/mcp</code>
+          These tools are available to any MCP client connected to Mission Control at <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>http://localhost:18801/mcp</code>
         </p>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -511,10 +511,10 @@ export default function Integrations({ navigate }) {
             borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: 12,
           }}>
             <code style={{ flex: 1, color: 'var(--text-secondary)' }}>
-              claude mcp add devfleet --transport http http://localhost:18801/mcp
+              claude mcp add mission-control --transport http http://localhost:18801/mcp
             </code>
             <button
-              onClick={() => copyToClipboard('claude mcp add devfleet --transport http http://localhost:18801/mcp', 'quick')}
+              onClick={() => copyToClipboard('claude mcp add mission-control --transport http http://localhost:18801/mcp', 'quick')}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 color: copiedCmd === 'quick' ? 'var(--success)' : 'var(--text-dim)',
