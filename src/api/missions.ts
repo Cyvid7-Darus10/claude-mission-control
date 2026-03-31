@@ -235,13 +235,6 @@ function handleDeleteMission(missionId: string, res: ServerResponse): void {
     return;
   }
 
-  if (existing.status !== 'queued') {
-    sendJson(res, 409, {
-      error: 'Can only delete missions with status "queued"',
-    });
-    return;
-  }
-
   const deleted = deleteMission(missionId);
   if (!deleted) {
     sendJson(res, 500, { error: 'Failed to delete mission' });

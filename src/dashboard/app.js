@@ -1059,6 +1059,13 @@
       actions.appendChild(requeueBtn);
     }
 
+    // Delete available on all statuses (except queued which already has it above)
+    if (status !== 'queued') {
+      var delBtn2 = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 DELETE' });
+      delBtn2.addEventListener('click', function () { deleteMission(mission.id); });
+      actions.appendChild(delBtn2);
+    }
+
     return actions;
   }
 
@@ -1163,6 +1170,18 @@
     expandedMissionId = (expandedMissionId === id) ? null : id;
     renderMissions();
   });
+
+  // Clear completed + failed missions
+  var $clearDone = document.getElementById('clear-done-missions');
+  if ($clearDone) {
+    $clearDone.addEventListener('click', function () {
+      var done = state.missions.filter(function (m) { return m.status === 'completed' || m.status === 'failed'; });
+      if (done.length === 0) { showToast('No completed/failed missions'); return; }
+      var count = done.length;
+      done.forEach(function (m) { deleteMission(m.id); });
+      showToast('Cleared ' + count + ' finished mission' + (count !== 1 ? 's' : ''));
+    });
+  }
 
   // ── Timeline panel ────────────────────────────────────────────────────────
 
