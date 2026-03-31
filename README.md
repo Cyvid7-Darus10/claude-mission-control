@@ -70,13 +70,25 @@ npx tsx src/index.ts
 
 Open **http://localhost:4280** in your browser. Enter the **6-digit access code** shown in the terminal.
 
-### Step 4: Share with Your Team (Optional)
+### Step 4: Use Your Phone as a Companion
 
-Anyone on the same WiFi network can view the dashboard:
+Keep the dashboard on your phone next to your laptop while you work. All updates stream in real-time via WebSocket.
 
-1. Give them the **Network URL** (e.g. `http://192.168.1.42:4280`)
-2. Give them the **Access Code** from the terminal
-3. They open the URL on any device (phone, tablet, laptop) and enter the code
+1. Find the **Network URL** in the terminal (e.g., `http://192.168.1.42:4280`)
+2. Open it on your phone's browser
+3. Enter the **6-digit access code**
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/mobile-agents.png" alt="Mobile agents view" width="220"><br><sub>Agents</sub></td>
+<td align="center"><img src="docs/screenshots/mobile-timeline.png" alt="Mobile timeline view" width="220"><br><sub>Timeline</sub></td>
+<td align="center"><img src="docs/screenshots/mobile-missions.png" alt="Mobile missions view" width="220"><br><sub>Missions</sub></td>
+<td align="center"><img src="docs/screenshots/mobile-login.png" alt="Mobile login" width="220"><br><sub>Login</sub></td>
+</tr>
+</table>
+<sub>Swipe between Agents, Missions, Usage, and Timeline tabs</sub>
+</div>
 
 The access code changes every time the server restarts. Sessions last 24 hours.
 
@@ -113,6 +125,16 @@ flowchart LR
 ---
 
 ## Features
+
+### Mobile Companion
+
+Open the **Network URL** on your phone to use Mission Control as a side monitor while you code. The mobile view features:
+
+- **Tab bar** at the bottom — switch between Agents, Missions, Usage, and Timeline
+- **Touch-optimized** — larger tap targets, swipe-friendly lists
+- **Live updates** — same WebSocket connection, real-time events
+- **Send instructions** — tap an agent, type a message, send from your phone
+- **Anti-pattern alerts** — STUCK, LOOP, SPIRAL badges visible on mobile
 
 ### Dashboard Panels
 
