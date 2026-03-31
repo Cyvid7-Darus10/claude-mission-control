@@ -169,18 +169,7 @@
         break;
       }
     }
-    if (count >= 3) return true;
-    // Convergence score: total calls / unique tools > 3.0 (from builderz)
-    // Catches subtle loops like A->B->A->B that consecutive matching misses
-    if (recent.length >= 6) {
-      var uniqueTools = {};
-      for (var j = 0; j < recent.length; j++) {
-        uniqueTools[recent[j].tool] = true;
-      }
-      var uniqueCount = Object.keys(uniqueTools).length;
-      if (uniqueCount > 0 && recent.length / uniqueCount > 3.0) return true;
-    }
-    return false;
+    return count >= 3;
   }
 
   // ── Enhanced anti-pattern detection (inspired by agenttop) ───────────────
