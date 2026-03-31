@@ -179,11 +179,11 @@ Open the **Network URL** on your phone to use Mission Control as a side monitor 
 
 | Panel | What It Shows |
 |-------|--------------|
-| **Agents** | Live agent status, current tool + target file, diff stats (+/-), files touched, session duration, anti-pattern alerts |
-| **Missions** | Task board with subtask progress bars, dependency tracking, priority, agent assignment |
-| **Usage & Costs** | Real token costs from JSONL logs, context window health, daily/model/session cost breakdowns, period selector (24h/7d/30d/All) |
-| **Timeline** | Every tool call scrolling in real-time — click any row to expand full input/output details |
-| **Command Bar** | Send instructions to any agent — delivered via stderr on next tool call |
+| **Agents** | Live status with filter tabs (All/Active/Idle), current tool + target file, diff stats (+/-), files touched, session duration, anti-pattern alerts. Click to filter timeline + usage. |
+| **Missions** | Auto-created from agent activity. Shows active/completed missions with expand-to-manage actions. CLEAR COMPLETED for bulk cleanup. |
+| **Usage & Costs** | Real token costs from JSONL logs, context window health, daily/model/session cost breakdowns, period selector (24h/7d/30d/All). Scopes to selected agent. |
+| **Timeline** | Every tool call scrolling in real-time — click any row to expand full input/output details. Filter by agent. |
+| **Instruct** | Send instructions to any agent — delivered via stderr on next tool call. Shows pending/delivered status log. |
 
 ### Agent Monitoring
 
@@ -191,6 +191,7 @@ Each agent row shows rich, at-a-glance status:
 
 | Info | Description |
 |------|-------------|
+| **Filter tabs** | Switch between All / Active / Idle to focus on what matters |
 | **Status dot** | `●` active (pulsing), `○` idle (60s), `◌` disconnected (5min) |
 | **Live activity** | Current tool + target file (e.g., `Edit auth.ts`, `Bash npm test`) |
 | **Diff stats** | Lines added/removed across all edits (e.g., `+142 -38`) |
@@ -291,7 +292,7 @@ Inspired by [agenttop](https://github.com/vicarious11/agenttop) and [builderz-la
 | Alert | Trigger | Severity |
 |-------|---------|----------|
 | **STUCK** | No events for 2+ minutes | Warning (blinking) |
-| **LOOP** | 3+ identical consecutive tool calls, or convergence score > 3.0 (catches subtle A→B→A→B patterns) | Danger (blinking) |
+| **LOOP** | 3+ identical consecutive write tool calls (Edit, Write, Bash). Read-only tools, Agent spawning, WebSearch, and Task operations are excluded. | Danger (blinking) |
 | **SPIRAL** | Same file edited 3+ times in last 6 tool calls (correction spiral) | Danger (blinking) |
 | **ERRORS** | 5+ tool failures in a session (error burst) | Danger (blinking) |
 | **MARATHON** | Session running 30+ minutes continuously | Info (steady) |
@@ -349,6 +350,9 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 | **Secret Scanner** | Scans tool output for leaked secrets — AWS keys, GitHub tokens, API keys, JWTs, private keys |
 | **Network Access** | Accepts connections from localhost and private network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x) |
 | **Hook Token** | Hook endpoints (`POST /api/events`, `GET /api/instructions`) require a Bearer token stored in `~/.claude-mission-control/hook-token`. Generated on server start, read by hook script automatically |
+| **Auth Rate Limiting** | 5 attempts per 15 minutes per IP. Lockout returns 429. |
+| **Security Headers** | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, CSP |
+| **Constant-Time Auth** | Access code and hook token comparison use constant-time algorithms to prevent timing attacks |
 | **Failed Auth Logging** | Invalid access code attempts are logged as security events |
 
 ### Keyboard Shortcuts
@@ -367,6 +371,7 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 | `n` | New mission |
 | `i` | Focus instruction input |
 | `/` | Clear timeline filter |
+| `s` | Toggle security panel |
 | `?` | Toggle keyboard shortcuts help |
 | `Esc` | Cancel / unfocus |
 
@@ -431,7 +436,7 @@ All endpoints return JSON. Dashboard endpoints require a session cookie (via acc
 | `GET` | `/api/missions` | Cookie | List missions (optional `?status=` filter) |
 | `POST` | `/api/missions` | Cookie | Create mission: `{ title, description, depends_on?, priority? }` |
 | `PATCH` | `/api/missions/:id` | Cookie | Update status, assign agent, complete/fail |
-| `DELETE` | `/api/missions/:id` | Cookie | Delete (queued only) |
+| `DELETE` | `/api/missions/:id` | Cookie | Delete a mission (any status) |
 | `POST` | `/api/events` | Hook token | Receive hook events (used by hook script) |
 | `GET` | `/api/events` | Cookie | Query events (optional `?limit=&offset=`) |
 | `POST` | `/api/instructions` | Cookie | Send instruction: `{ target_agent_id, message }` |
