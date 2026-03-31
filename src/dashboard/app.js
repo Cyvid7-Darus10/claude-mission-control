@@ -694,6 +694,60 @@
       children.push(createEl('div', { className: 'agent-stats', textContent: statParts.join('  ·  ') }));
     }
 
+    // Quick-action buttons (visible on hover)
+    var quickActions = createEl('div', { className: 'agent-quick-actions' });
+
+    if (agent.cwd) {
+      var copyPathBtn = createEl('button', { className: 'agent-quick-btn', textContent: '\u2398 Copy Path' });
+      (function (cwd) {
+        copyPathBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          navigator.clipboard.writeText(cwd).then(function () {
+            showToast('Copied: ' + cwd);
+          }).catch(function () {
+            // Fallback for non-HTTPS
+            var ta = document.createElement('textarea');
+            ta.value = cwd;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            showToast('Copied: ' + cwd);
+          });
+        });
+      })(agent.cwd);
+      quickActions.appendChild(copyPathBtn);
+    }
+
+    if (agent.session_id) {
+      var copyIdBtn = createEl('button', { className: 'agent-quick-btn', textContent: '\u2397 Copy ID' });
+      (function (sid) {
+        copyIdBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          navigator.clipboard.writeText(sid).then(function () {
+            showToast('Copied session ID');
+          }).catch(function () {
+            var ta = document.createElement('textarea');
+            ta.value = sid;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            showToast('Copied session ID');
+          });
+        });
+      })(agent.session_id);
+      quickActions.appendChild(copyIdBtn);
+    }
+
+    if (quickActions.childNodes.length > 0) {
+      children.push(quickActions);
+    }
+
     // Store tooltip data for custom tooltip
     var tipParts = [];
     if (agent.name) tipParts.push('Name: ' + agent.name);

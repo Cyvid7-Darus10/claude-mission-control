@@ -1762,6 +1762,47 @@ html, body {
   cursor: pointer;
 }
 
+/* ── Agent quick-action buttons (copy path, copy ID) ──── */
+.agent-quick-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  margin-left: 15px;
+  opacity: 0;
+  transition: opacity 100ms;
+}
+
+.agent-row:hover .agent-quick-actions {
+  opacity: 1;
+}
+
+/* Always show on touch devices */
+@media (hover: none) {
+  .agent-quick-actions { opacity: 0.7; }
+}
+
+.agent-quick-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  padding: 1px 8px;
+  cursor: pointer;
+  transition: all 80ms;
+  white-space: nowrap;
+}
+
+.agent-quick-btn:hover {
+  color: var(--text-bright);
+  border-color: var(--border-bright);
+  background: var(--bg-hover);
+}
+
+.agent-quick-btn:active {
+  background: var(--bg-active);
+}
+
 .session-toggle:hover {
   color: var(--text-bright);
 }
