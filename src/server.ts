@@ -185,9 +185,14 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
         return;
       }
 
-      // ── Hook endpoint: no auth (hooks don't have cookies) ──
+      // ── Hook endpoints: no auth (hooks don't have cookies) ──
       if (url.startsWith('/api/events') && method === 'POST') {
         await handleEvents(req, res);
+        return;
+      }
+      // Hook fetches pending instructions via GET during PreToolUse
+      if (url.startsWith('/api/instructions/') && method === 'GET') {
+        await handleInstructions(req, res);
         return;
       }
 

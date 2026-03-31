@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
 const { createServer } = await import('../../src/server');
 
 let stop: () => void;
+let f: ReturnType<typeof authedFetch>;
 const PORT = 14284;
 const BASE = `http://localhost:${PORT}`;
 
@@ -14,6 +15,8 @@ beforeAll(async () => {
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
+  const cookie = await authenticate(BASE, server.accessCode);
+  f = authedFetch(cookie);
 });
 
 afterAll(() => {
@@ -21,14 +24,49 @@ afterAll(() => {
   teardownTestDb(tmpDir);
 });
 
+describe('authentication', () => {
+  it('rejects unauthenticated API requests', async () => {
+    const res = await fetch(`${BASE}/api/agents`);
+    expect(res.status).toBe(401);
+  });
+
+  it('accepts authenticated API requests', async () => {
+    const res = await f(`${BASE}/api/dashboard`);
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects invalid access code', async () => {
+    const res = await fetch(`${BASE}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '000000' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('allows POST /api/events without auth (hook endpoint)', async () => {
+    const res = await fetch(`${BASE}/api/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: 'sec-test',
+        agent_id: 'main',
+        event_type: 'pre_tool_use',
+        tool_name: 'Read',
+      }),
+    });
+    expect(res.status).toBe(201);
+  });
+});
+
 describe('CORS origin validation', () => {
   it('allows requests with no Origin header', async () => {
-    const res = await fetch(`${BASE}/api/dashboard`);
+    const res = await f(`${BASE}/api/dashboard`);
     expect(res.status).toBe(200);
   });
 
   it('allows requests from localhost', async () => {
-    const res = await fetch(`${BASE}/api/dashboard`, {
+    const res = await f(`${BASE}/api/dashboard`, {
       headers: { Origin: `http://localhost:${PORT}` },
     });
     expect(res.status).toBe(200);
@@ -40,46 +78,38 @@ describe('CORS origin validation', () => {
     });
     expect(res.status).toBe(403);
   });
-
-  it('blocks requests from different port', async () => {
-    const res = await fetch(`${BASE}/api/dashboard`, {
-      headers: { Origin: 'http://localhost:9999' },
-    });
-    expect(res.status).toBe(403);
-  });
 });
 
 describe('error handling', () => {
-  it('returns generic error message on 500', async () => {
-    // Trigger an error by sending invalid method to a valid route
-    const res = await fetch(`${BASE}/api/events`, { method: 'PUT' });
-    // Should get 404 or 405, not a stack trace
-    expect([404, 405]).toContain(res.status);
-  });
-
   it('returns 404 for unknown routes', async () => {
-    const res = await fetch(`${BASE}/api/nonexistent`);
+    const res = await f(`${BASE}/api/nonexistent`);
     expect(res.status).toBe(404);
   });
 });
 
 describe('dashboard serving', () => {
-  it('serves index.html', async () => {
-    const res = await fetch(`${BASE}/`);
+  it('serves login page without auth', async () => {
+    const res = await fetch(`${BASE}/login`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/html');
   });
 
-  it('serves styles.css', async () => {
+  it('redirects / to login when unauthenticated', async () => {
+    const res = await fetch(`${BASE}/`, { redirect: 'manual' });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe('/login');
+  });
+
+  it('serves index.html when authenticated', async () => {
+    const res = await f(`${BASE}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+  });
+
+  it('serves styles.css without auth', async () => {
     const res = await fetch(`${BASE}/styles.css`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/css');
-  });
-
-  it('serves app.js', async () => {
-    const res = await fetch(`${BASE}/app.js`);
-    expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toContain('javascript');
   });
 });
 

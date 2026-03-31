@@ -19,10 +19,15 @@
     .login-box {
       background: var(--bg-panel);
       border: 1px solid var(--border);
-      padding: 32px;
-      width: 320px;
-      max-width: 90vw;
+      padding: 32px 24px;
+      width: 340px;
+      max-width: 92vw;
       text-align: center;
+    }
+    @media (max-width: 640px) {
+      .login-box { padding: 24px 16px; }
+      .login-input { font-size: 20px; letter-spacing: 6px; padding: 14px; }
+      .login-btn { padding: 12px; font-size: var(--font-size-base); }
     }
     .login-logo {
       font-family: var(--font-sans);

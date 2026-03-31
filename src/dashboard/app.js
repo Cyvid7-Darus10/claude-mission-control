@@ -618,9 +618,14 @@
 
     var topChildren = [dot, nameEl];
 
-    // Sub-count badge for main agents with children
+    // Sub-count badge (clickable toggle) for main agents with children
     if (!isSub && agent._subCount > 0) {
-      topChildren.push(createEl('span', { className: 'agent-sub-count', textContent: agent._subCount + ' sub' }));
+      var chevron = agent._sessionCollapsed ? '\u25B8' : '\u25BE'; // ▸ or ▾
+      var toggleEl = createEl('span', {
+        className: 'agent-sub-toggle',
+        textContent: chevron + ' ' + agent._subCount + ' sub'
+      });
+      topChildren.push(toggleEl);
     }
 
     // Alert badges
@@ -693,6 +698,20 @@
     return row;
   }
 
+  // Track collapsed sessions (persisted)
+  var SESSION_COLLAPSE_KEY = 'mc_session_collapsed';
+  var collapsedSessions = {};
+  try {
+    var saved = localStorage.getItem(SESSION_COLLAPSE_KEY);
+    if (saved) collapsedSessions = JSON.parse(saved);
+  } catch (e) {}
+
+  function toggleSessionCollapse(sid) {
+    collapsedSessions[sid] = !collapsedSessions[sid];
+    try { localStorage.setItem(SESSION_COLLAPSE_KEY, JSON.stringify(collapsedSessions)); } catch (e) {}
+    renderAgents();
+  }
+
   function renderAgents() {
     $agentsBadge.textContent = state.agents.length;
     clearElement($agentsList);
@@ -710,27 +729,51 @@
       var group = tree.sessions[sid];
       var main = group.main;
       var subs = group.subs;
+      var isCollapsed = !!collapsedSessions[sid];
 
-      var container = createEl('div', { className: 'agent-group' });
+      var container = createEl('div', { className: 'agent-group' + (isCollapsed ? ' session-collapsed' : '') });
 
-      // Main agent row (no connectors, bold, full width)
+      // Main agent row
       if (main) {
         main._subCount = subs.length;
-        container.appendChild(buildAgentRow(main, false, false, flatIdx++));
+        main._sessionCollapsed = isCollapsed;
+        var mainRow = buildAgentRow(main, false, false, flatIdx++);
+        container.appendChild(mainRow);
       } else {
-        // No main agent — show session label
         var label = 'Session ' + sid.slice(0, 8);
-        container.appendChild(createEl('div', { className: 'agent-group-label', textContent: label }));
+        var labelEl = createEl('div', { className: 'agent-group-label', textContent: label });
+        if (subs.length > 0) {
+          var toggleEl = createEl('span', {
+            className: 'session-toggle',
+            textContent: isCollapsed ? '\u25B8 ' + subs.length + ' sub' : '\u25BE ' + subs.length + ' sub'
+          });
+          labelEl.appendChild(toggleEl);
+        }
+        container.appendChild(labelEl);
       }
 
-      // Subagents nested underneath
-      if (subs.length > 0) {
+      // Toggle click on the sub-count badge or main row
+      (function (capturedSid) {
+        container.addEventListener('click', function (e) {
+          var toggle = e.target.closest('.agent-sub-toggle');
+          if (toggle) {
+            e.stopPropagation();
+            toggleSessionCollapse(capturedSid);
+          }
+        });
+      })(sid);
+
+      // Subagents nested underneath (hidden when collapsed)
+      if (subs.length > 0 && !isCollapsed) {
         var subContainer = createEl('div', { className: 'agent-subs' });
         subs.forEach(function (sub, j) {
           sub._subCount = 0;
           subContainer.appendChild(buildAgentRow(sub, true, j === subs.length - 1, flatIdx++));
         });
         container.appendChild(subContainer);
+      } else if (subs.length > 0 && isCollapsed) {
+        // Still count flatIdx for collapsed subs so keyboard nav stays consistent
+        flatIdx += subs.length;
       }
 
       $agentsList.appendChild(container);

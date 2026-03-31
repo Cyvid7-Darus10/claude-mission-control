@@ -290,24 +290,25 @@ function printBanner(port: number, accessCode: string): void {
     }
   } catch {}
 
-  console.log(`
-  ┌─────────────────────────────────────────┐
-  │  { SENTINEL } MISSION CONTROL v${VERSION}     │
-  ├─────────────────────────────────────────┤
-  │                                         │
-  │  Local:   http://localhost:${port}        │
-  │  Network: http://${localIp}:${port}  │
-  │                                         │
-  │  Access Code: ${accessCode}                    │
-  │                                         │
-  │  Share the network URL + code with      │
-  │  others on the same WiFi network.       │
-  │                                         │
-  └─────────────────────────────────────────┘
+  const localUrl = `http://localhost:${port}`;
+  const networkUrl = `http://${localIp}:${port}`;
 
-  Hooks: Listening for Claude Code events
-  Press Ctrl+C to stop.
-`);
+  console.log('');
+  console.log('  \x1b[2m{ SENTINEL }\x1b[0m  \x1b[1mMISSION CONTROL\x1b[0m v' + VERSION);
+  console.log('  \x1b[2m─────────────────────────────────────────\x1b[0m');
+  console.log('');
+  console.log('  \x1b[2mLocal:\x1b[0m     ' + localUrl);
+  console.log('  \x1b[2mNetwork:\x1b[0m   ' + networkUrl);
+  console.log('');
+  console.log('  \x1b[2mAccess Code:\x1b[0m  \x1b[1m\x1b[33m' + accessCode + '\x1b[0m');
+  console.log('');
+  console.log('  \x1b[2mShare the network URL + access code');
+  console.log('  with anyone on the same WiFi.\x1b[0m');
+  console.log('');
+  console.log('  \x1b[2m─────────────────────────────────────────\x1b[0m');
+  console.log('  Hooks: Listening for Claude Code events');
+  console.log('  Press \x1b[1mCtrl+C\x1b[0m to stop.');
+  console.log('');
 }
 
 function startServer(port: number, shouldOpen: boolean): void {

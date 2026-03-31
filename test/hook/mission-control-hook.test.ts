@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { setupTestDb, teardownTestDb } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
 
 const execFileAsync = promisify(execFile);
 const tmpDir = setupTestDb();
@@ -10,7 +10,9 @@ const tmpDir = setupTestDb();
 const { createServer } = await import('../../src/server');
 
 let stop: () => void;
+let f: ReturnType<typeof authedFetch>;
 const PORT = 14283;
+const BASE = `http://localhost:${PORT}`;
 const HOOK_SCRIPT = path.resolve(__dirname, '../../src/hook/mission-control-hook.js');
 
 beforeAll(async () => {
@@ -18,6 +20,8 @@ beforeAll(async () => {
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
+  const cookie = await authenticate(BASE, server.accessCode);
+  f = authedFetch(cookie);
 });
 
 afterAll(() => {
@@ -40,7 +44,6 @@ function runHook(stdin: string, env: Record<string, string> = {}): Promise<{ std
         timeout: 5000,
       },
       (error, stdout, stderr) => {
-        // Hook always exits 0 — error here means timeout or crash
         resolve({ stdout: stdout ?? '', stderr: stderr ?? '' });
       },
     );
@@ -53,7 +56,7 @@ function runHook(stdin: string, env: Record<string, string> = {}): Promise<{ std
 
 describe('hook — event posting', () => {
   it('posts an event to the server', async () => {
-    const { stderr } = await runHook(
+    await runHook(
       JSON.stringify({
         tool_name: 'Read',
         tool_input: { file_path: '/tmp/test.ts' },
@@ -63,8 +66,7 @@ describe('hook — event posting', () => {
       { CLAUDE_HOOK_EVENT_NAME: 'PreToolUse' },
     );
 
-    // Verify the agent was registered
-    const res = await fetch(`http://localhost:${PORT}/api/agents`);
+    const res = await f(`${BASE}/api/agents`);
     const agents = await res.json();
     expect(agents.some((a: any) => a.id === 'hook-test-sess:main')).toBe(true);
   });
@@ -78,7 +80,7 @@ describe('hook — event posting', () => {
       { CLAUDE_HOOK_EVENT_NAME: 'SubagentStart' },
     );
 
-    const res = await fetch(`http://localhost:${PORT}/api/agents`);
+    const res = await f(`${BASE}/api/agents`);
     const agents = await res.json();
     expect(agents.some((a: any) => a.id === 'hook-test-sess:sub-xyz')).toBe(true);
   });
@@ -86,8 +88,8 @@ describe('hook — event posting', () => {
 
 describe('hook — instruction delivery', () => {
   it('receives pending instructions via stderr on PreToolUse', async () => {
-    // Create an instruction for the agent
-    await fetch(`http://localhost:${PORT}/api/instructions`, {
+    // Create an instruction (authed)
+    await f(`${BASE}/api/instructions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -111,7 +113,7 @@ describe('hook — instruction delivery', () => {
   });
 
   it('does not fetch instructions on PostToolUse', async () => {
-    await fetch(`http://localhost:${PORT}/api/instructions`, {
+    await f(`${BASE}/api/instructions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -143,11 +145,9 @@ describe('hook — resilience', () => {
       }),
       {
         CLAUDE_HOOK_EVENT_NAME: 'PreToolUse',
-        CLAUDE_MC_PORT: '19999', // no server here
+        CLAUDE_MC_PORT: '19999',
       },
     );
-
-    // Should not crash — stderr may be empty, that's fine
     expect(typeof stderr).toBe('string');
   });
 

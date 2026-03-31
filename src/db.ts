@@ -451,22 +451,22 @@ export function getDashboardStats(): DashboardStats {
 
 // -- Usage stats --------------------------------------------------------------
 
-export interface ToolUsageStat {
+interface ToolUsageStat {
   readonly tool_name: string;
   readonly count: number;
 }
 
-export interface AgentUsageStat {
+interface AgentUsageStat {
   readonly agent_id: string;
   readonly count: number;
 }
 
-export interface HourlyUsageStat {
+interface HourlyUsageStat {
   readonly hour: string;
   readonly count: number;
 }
 
-export interface SessionCostStat {
+interface SessionCostStat {
   readonly session_id: string;
   readonly agent_count: number;
   readonly tool_calls: number;
@@ -476,14 +476,14 @@ export interface SessionCostStat {
   readonly estimated_cost: number;
 }
 
-export interface DailyCostStat {
+interface DailyCostStat {
   readonly date: string;
   readonly tool_calls: number;
   readonly sessions: number;
   readonly estimated_cost: number;
 }
 
-export interface UsageStats {
+interface UsageStats {
   readonly period: string;
   readonly hoursBack: number;
   readonly toolUsage: readonly ToolUsageStat[];

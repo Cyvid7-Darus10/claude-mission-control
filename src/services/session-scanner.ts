@@ -57,7 +57,7 @@ function tokenCost(tokens: number, pricePerMillion: number): number {
 // Types
 // ---------------------------------------------------------------------------
 
-export interface SessionTokenUsage {
+interface SessionTokenUsage {
   readonly sessionId: string;
   readonly model: string;
   readonly inputTokens: number;
@@ -74,7 +74,7 @@ export interface SessionTokenUsage {
   readonly isActive: boolean;           // session PID is still running
 }
 
-export interface DailyTokenUsage {
+interface DailyTokenUsage {
   readonly date: string;
   readonly inputTokens: number;
   readonly outputTokens: number;
@@ -86,7 +86,7 @@ export interface DailyTokenUsage {
   readonly sessions: number;
 }
 
-export interface ModelUsage {
+interface ModelUsage {
   readonly model: string;
   readonly inputTokens: number;
   readonly outputTokens: number;
@@ -95,7 +95,7 @@ export interface ModelUsage {
   readonly messageCount: number;
 }
 
-export interface TokenSummary {
+interface TokenSummary {
   readonly sessions: readonly SessionTokenUsage[];
   readonly daily: readonly DailyTokenUsage[];
   readonly models: readonly ModelUsage[];

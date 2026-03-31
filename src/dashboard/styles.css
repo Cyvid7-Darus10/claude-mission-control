@@ -1510,14 +1510,40 @@ html, body {
   margin-left: 13px;
 }
 
-/* Sub-count badge on main agents */
-.agent-sub-count {
+/* Sub-count toggle on main agents */
+.agent-sub-toggle {
   font-size: 9px;
   color: var(--text-muted);
   border: 1px solid var(--border);
-  padding: 0 4px;
-  line-height: 14px;
+  padding: 0 6px;
+  line-height: 16px;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: all 80ms;
+  user-select: none;
+}
+
+.agent-sub-toggle:hover {
+  color: var(--text-bright);
+  border-color: var(--border-bright);
+  background: var(--bg-hover);
+}
+
+/* Collapsed session: hide subs */
+.agent-group.session-collapsed .agent-subs {
+  display: none;
+}
+
+/* Session toggle in group label */
+.session-toggle {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-left: 8px;
+  cursor: pointer;
+}
+
+.session-toggle:hover {
+  color: var(--text-bright);
 }
 
 /* ── Mobile tab bar ───────────────────────────────────── */
@@ -1593,37 +1619,65 @@ html, body {
 
 /* ── Responsive ───────────────────────────────────────── */
 
-/* Mobile: single column with tab navigation */
+/* ── Mobile: single column + tab navigation ───────────── */
 @media (max-width: 640px) {
+  /* Classification banner */
+  #classification-banner {
+    height: 16px;
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+
+  /* Header: compact */
   #header {
     height: 36px;
     padding: 0 10px;
-    gap: 8px;
+    gap: 6px;
   }
 
   .logo {
     font-size: var(--font-size-sm);
-    letter-spacing: 1.5px;
+    letter-spacing: 1px;
   }
 
   .logo-icon { display: none; }
 
   .header-stats {
-    gap: 6px;
+    gap: 4px;
+    overflow: hidden;
   }
 
-  /* Show only agent and mission count on mobile */
+  .stat {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Hide events count, uptime, and extra separators */
   .stat:nth-child(n+5) { display: none; }
   .stat-sep:nth-child(n+4) { display: none; }
 
   .kbd-hint { display: none; }
 
+  /* Security shield: compact */
+  .security-shield {
+    padding: 1px 5px;
+    gap: 3px;
+  }
+  .shield-label { display: none; }
+  .shield-icon { font-size: 10px; }
+
+  /* Connection status: dot only */
+  .conn-text { display: none; }
+  .conn-dot { width: 8px; height: 8px; }
+
+  /* Main grid: single column */
   #main-grid {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
-    height: calc(100vh - 36px - 44px);
+    height: calc(100vh - 36px - 16px - 44px); /* header + banner + tabs */
   }
 
+  /* Bottom tab bar */
   #mobile-tabs {
     display: block;
     position: fixed;
@@ -1633,7 +1687,7 @@ html, body {
     z-index: 50;
   }
 
-  /* Hide columns — JS toggles visibility */
+  /* Hide columns — JS toggles */
   #left-col,
   #right-col {
     border: none;
@@ -1645,55 +1699,61 @@ html, body {
     display: flex;
   }
 
-  /* When showing right col, stack missions and timeline */
   #right-col.mobile-visible {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Each panel fills its tab fully */
+  #missions-panel {
+    max-height: 100%;
     flex: 1;
   }
 
-  #missions-panel {
-    max-height: 50%;
+  #usage-panel {
+    max-height: 100%;
+    flex: 1;
   }
 
-  /* Agents panel takes full height on mobile */
   #agents-panel {
     flex: 1;
   }
 
-  /* Larger touch targets */
+  /* Touch-sized rows */
   .agent-row {
     padding: 10px 12px;
   }
 
   .mission-row {
-    padding: 8px 12px;
+    padding: 10px 12px;
   }
 
   .timeline-row {
-    padding: 5px 10px;
+    padding: 6px 10px;
   }
 
   .btn-action {
-    padding: 8px 10px;
+    padding: 10px 10px;
     font-size: var(--font-size-sm);
   }
 
-  /* Command section as fixed bottom bar on agents tab */
+  /* Command section */
   #command-section {
     border-top: 1px solid var(--border);
   }
 
   .command-body {
-    padding: 8px 12px;
+    padding: 10px 12px;
   }
 
   #command-input {
-    font-size: var(--font-size-md);
+    font-size: 16px; /* prevent iOS zoom */
   }
 
-  /* Inline form bigger on mobile */
+  /* Inline form */
   .inline-input {
-    font-size: var(--font-size-base);
-    padding: 6px 10px;
+    font-size: 16px;
+    padding: 8px 10px;
   }
 
   .inline-form-actions {
@@ -1702,35 +1762,125 @@ html, body {
 
   .btn-submit,
   .btn-cancel {
-    padding: 4px 14px;
+    padding: 6px 14px;
     font-size: var(--font-size-sm);
+    min-height: 36px;
   }
 
-  /* Timeline: hide time column on very narrow */
+  /* Timeline columns: tighter */
   .timeline-time {
     width: 44px;
+    font-size: 9px;
   }
 
   .timeline-agent {
-    max-width: 60px;
-    min-width: 40px;
+    max-width: 50px;
+    min-width: 36px;
+    font-size: 9px;
   }
 
-  /* Panel headers slightly taller for touch */
+  .timeline-tool {
+    font-size: 9px;
+    min-width: 30px;
+  }
+
+  .timeline-detail {
+    font-size: 9px;
+  }
+
+  /* Panel headers: larger tap target */
   .panel-header {
-    min-height: 34px;
-    padding: 6px 10px;
+    min-height: 38px;
+    padding: 8px 12px;
   }
 
-  /* Keyboard help adjustments */
+  .panel-title {
+    font-size: var(--font-size-sm);
+  }
+
+  /* Subagent tree: tighter indent */
+  .agent-subs {
+    margin-left: 10px;
+  }
+
+  /* Overlays: full-width */
   .kbd-content {
     min-width: auto;
-    width: 90vw;
+    width: 92vw;
     padding: 16px;
+  }
+
+  .security-panel {
+    width: 95vw;
+    max-height: 90vh;
+  }
+
+  .security-top {
+    flex-direction: column;
+  }
+
+  .radar-container {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 12px;
+  }
+
+  .radar-container svg {
+    width: 120px;
+    height: 120px;
+  }
+
+  .security-layers {
+    padding: 10px 12px;
+  }
+
+  /* Tooltip: bottom-anchored on mobile */
+  .custom-tooltip {
+    left: 8px !important;
+    right: 8px;
+    max-width: none;
+    bottom: 52px;
+    top: auto !important;
+  }
+
+  /* Toast above tab bar */
+  .toast {
+    bottom: 56px;
+  }
+
+  /* Usage panel: full height in its tab */
+  .usage-section {
+    max-height: none;
+  }
+
+  .period-tabs {
+    gap: 2px;
+  }
+
+  .period-tab {
+    padding: 2px 6px;
+    font-size: 9px;
   }
 }
 
-/* Tablet */
+/* ── Very small screens (iPhone SE, etc.) ─────────────── */
+@media (max-width: 375px) {
+  .header-stats {
+    display: none; /* hide stats entirely on tiny screens */
+  }
+
+  #main-grid {
+    height: calc(100vh - 36px - 16px - 44px);
+  }
+
+  .agent-name {
+    font-size: var(--font-size-sm);
+  }
+
+  .timeline-time { display: none; } /* hide timestamp to save space */
+}
+
+/* ── Tablet ───────────────────────────────────────────── */
 @media (min-width: 641px) and (max-width: 900px) {
   #main-grid {
     grid-template-columns: minmax(180px, 220px) 1fr;
@@ -1741,6 +1891,10 @@ html, body {
   /* Hide uptime on tablet */
   .stat:last-child { display: none; }
   .stat-sep:last-of-type { display: none; }
+
+  .security-panel {
+    width: 80vw;
+  }
 }
 
 /* ── Touch optimization ───────────────────────────────── */
@@ -1751,29 +1905,42 @@ html, body {
   }
 
   .mission-row {
-    padding: 8px 12px;
-    min-height: 40px;
+    padding: 10px 12px;
+    min-height: 44px;
   }
 
   .timeline-row {
-    padding: 6px 10px;
-    min-height: 36px;
+    padding: 8px 10px;
+    min-height: 40px;
   }
 
   .btn-action,
   .btn-submit,
   .btn-cancel {
-    min-height: 36px;
+    min-height: 40px;
   }
 
   #command-input {
-    min-height: 36px;
-    font-size: 16px; /* prevent iOS zoom on focus */
+    min-height: 40px;
+    font-size: 16px;
   }
 
   .inline-input {
-    min-height: 36px;
+    min-height: 40px;
     font-size: 16px;
+  }
+
+  /* Disable hover effects on touch */
+  .agent-row:hover,
+  .mission-row:hover,
+  .timeline-row:hover,
+  .panel-header:hover {
+    background: inherit;
+  }
+
+  /* Tooltip: show dismiss X on touch */
+  .sec-event-dismiss {
+    opacity: 0.5;
   }
 }
 
