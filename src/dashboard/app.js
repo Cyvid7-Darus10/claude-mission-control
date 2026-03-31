@@ -996,7 +996,8 @@
       var isDone = status === 'completed';
       var focused = (state.activePanel === 1 && state.focusedRow[1] === i);
       var isExpanded = expandedMissionId === mission.id;
-      var rowClass = 'mission-row' + (focused ? ' focused' : '') + (isExpanded ? ' expanded' : '') + (isDone ? ' done' : '');
+      var isLinked = state.selectedAgentId && mission.assigned_agent_id === state.selectedAgentId;
+      var rowClass = 'mission-row' + (focused ? ' focused' : '') + (isExpanded ? ' expanded' : '') + (isDone ? ' done' : '') + (isLinked ? ' agent-linked' : '');
 
       // Simple checkbox-style indicator
       var checkbox = createEl('span', {
@@ -1759,6 +1760,7 @@
       setTimelineFilter(agent.agent_id || agent.id);
     }
     renderAgents();
+    renderMissions();
     fetchUsage();
   });
 
