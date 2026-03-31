@@ -326,7 +326,7 @@
         else if (key === 'textContent') el.textContent = attrs[key];
         else if (key.indexOf('data-') === 0) el.setAttribute(key, attrs[key]);
         else if (key === 'style') el.setAttribute('style', attrs[key]);
-        else el[key] = attrs[key];
+        else if (key !== 'innerHTML') el[key] = attrs[key];
       });
     }
     if (children) {
@@ -1716,6 +1716,9 @@
   // Expose API for security.js module
   window.MissionControl = {
     showToast: showToast,
+    formatTime: formatTime,
+    createEl: createEl,
+    clearElement: clearElement,
     trackAgentActivity: trackAgentActivity,
     handleSecurityEvent: null, // set by security.js
     scanToolEvent: null,       // set by security.js
@@ -1801,7 +1804,7 @@
 
   var SECRET_PATTERNS = [
     { name: 'AWS Key', pattern: /AKIA[0-9A-Z]{16}/ },
-    { name: 'AWS Secret', pattern: /[0-9a-zA-Z/+]{40}/ },
+    { name: 'AWS Secret', pattern: /(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY|aws_secret)\s*[:=]\s*['"]?[0-9a-zA-Z/+]{40}/i },
     { name: 'GitHub Token', pattern: /gh[ps]_[A-Za-z0-9_]{36,}/ },
     { name: 'Anthropic Key', pattern: /sk-ant-[a-zA-Z0-9_-]{20,}/ },
     { name: 'OpenAI Key', pattern: /sk-[a-zA-Z0-9]{20,}/ },

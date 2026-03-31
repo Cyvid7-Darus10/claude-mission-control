@@ -58,7 +58,11 @@ function getAllowedOrigins(port: number): readonly string[] {
 }
 
 // Private/local network IP ranges (RFC 1918 + link-local)
-const PRIVATE_IP_PATTERN = /^http:\/\/(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.\d{1,3}\.\d{1,3}):\d+$/;
+// RFC-1918 private IP pattern with proper 0-255 octet validation
+const OCTET = '(?:\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])';
+const PRIVATE_IP_PATTERN = new RegExp(
+  `^http:\\/\\/(10\\.${OCTET}\\.${OCTET}\\.${OCTET}|172\\.(?:1[6-9]|2\\d|3[01])\\.${OCTET}\\.${OCTET}|192\\.168\\.${OCTET}\\.${OCTET}|169\\.254\\.${OCTET}\\.${OCTET}):\\d+$`
+);
 
 function isOriginAllowed(origin: string | undefined, port: number): boolean {
   // No Origin header = same-origin request or CLI/programmatic — allow
@@ -117,6 +121,7 @@ function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse, por
 
   if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -169,17 +174,16 @@ export function createServer(port: number = 4280, bindLocal: boolean = false): {
     return token ? validSessions.has(token) : false;
   }
 
-  // H1/H2 fix: Validate hook token (constant-time comparison)
+  // H1/H2 fix: Validate hook token (constant-time comparison via crypto)
   function isHookAuthenticated(req: http.IncomingMessage): boolean {
     const auth = req.headers.authorization ?? '';
     const provided = auth.startsWith('Bearer ') ? auth.slice(7) : '';
     if (provided.length !== hookToken.length) return false;
-    // Constant-time comparison to prevent timing attacks
-    let mismatch = 0;
-    for (let i = 0; i < hookToken.length; i++) {
-      mismatch |= provided.charCodeAt(i) ^ hookToken.charCodeAt(i);
+    try {
+      return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(hookToken));
+    } catch {
+      return false;
     }
-    return mismatch === 0;
   }
 
   function setSessionCookie(res: http.ServerResponse, token: string): void {
@@ -191,7 +195,7 @@ export function createServer(port: number = 4280, bindLocal: boolean = false): {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' ws: wss:; img-src 'self' data:");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' ws: wss:; img-src 'self' data:");
   }
 
   const server = http.createServer(async (req, res) => {
@@ -269,20 +273,29 @@ export function createServer(port: number = 4280, bindLocal: boolean = false): {
         return;
       }
 
-      // ── Login page (served without auth) ──
-      if (method === 'GET' && (url === '/login' || url === '/login.html')) {
+      // ── Public routes (no auth required) ──
+      const urlPath = url.split('?')[0]; // Strip query string for matching
+
+      // Login page
+      if (method === 'GET' && (urlPath === '/login' || urlPath === '/login.html')) {
         serveDashboardFile('login.html', res);
         return;
       }
       // Static assets needed by login page
-      if (method === 'GET' && url === '/styles.css') {
+      if (method === 'GET' && urlPath === '/styles.css') {
         serveDashboardFile('styles.css', res);
+        return;
+      }
+      // Favicon (no auth, return 204 if missing)
+      if (method === 'GET' && urlPath === '/favicon.ico') {
+        res.writeHead(204);
+        res.end();
         return;
       }
 
       // ── Auth check for everything else ──
       if (!isAuthenticated(req)) {
-        if (method === 'GET' && (url === '/' || url === '/index.html')) {
+        if (method === 'GET' && (urlPath === '/' || urlPath === '/index.html')) {
           // Redirect to login
           res.writeHead(302, { 'Location': '/login' });
           res.end();
