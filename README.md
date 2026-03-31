@@ -23,26 +23,29 @@ You're running multiple Claude Code agents — maybe one building auth, another 
 Mission Control is a web dashboard that connects to Claude Code via hooks. Every tool call, file edit, and bash command is streamed to the dashboard in real-time. You see all your agents at a glance, assign them missions, track dependencies, and send instructions — like a command center.
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  MISSION CONTROL                    3 agents ● 5 missions       │
-├──────────┬───────────────────────────────────────────────────────┤
-│          │  QUEUED        ACTIVE         DONE         FAILED     │
-│ AGENTS   │ ┌──────┐     ┌──────┐      ┌──────┐                  │
-│          │ │Auth  │────→│API   │      │Setup │                  │
-│ ● Alpha  │ │module│     │routes│      │done  │                  │
-│   auth.ts│ └──────┘     └──┬───┘      └──────┘                  │
-│          │ ┌──────┐        │                                     │
-│ ● Bravo  │ │Tests │←───────┘                                     │
-│   npm tst│ │suite │                                              │
-│          │ └──────┘                                              │
-│ ○ Charlie│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
-│   idle   │  TIMELINE                                             │
-│          │  12:34:02 ● Alpha  Edit src/auth.ts                   │
-│ ──────── │  12:34:01 ● Bravo  Bash npm test                     │
-│ + Send   │  12:33:58 ● Alpha  Read package.json                 │
-│ Message  │  12:33:50 ○ Charlie Read src/routes.ts                │
-└──────────┴───────────────────────────────────────────────────────┘
+┌─ MISSION CONTROL ──────────────────────────── 3 agents ● 5 missions ─┐
+├──────────────┬───────────────────────────────────────────────────────-─┤
+│ > AGENTS     │ > MISSIONS                                             │
+│              │                                                        │
+│ ● alpha      │ [QUEUED]  Auth middleware         priority: HIGH        │
+│   editing    │ [ACTIVE]  API routes        ← alpha  02:34 elapsed     │
+│   auth.ts    │ [ACTIVE]  Unit tests        ← bravo  01:12 elapsed     │
+│              │ [DONE]    Project setup      completed 5m ago           │
+│ ● bravo      │ [BLOCKED] E2E tests         waiting on: API routes     │
+│   running    │                                                        │
+│   npm test   │────────────────────────────────────────────────────────│
+│              │ > TIMELINE                                              │
+│ ○ charlie    │                                                        │
+│   idle 45s   │ 12:34:02 alpha  EDIT  src/middleware/auth.ts            │
+│              │ 12:34:01 bravo  BASH  npm test --coverage               │
+│──────────────│ 12:33:58 alpha  READ  package.json                     │
+│ > SEND MSG   │ 12:33:55 alpha  BASH  git status                       │
+│ to: alpha    │ 12:33:50 charlie READ src/routes/payments.ts           │
+│ > _          │ 12:33:48 alpha  WRITE src/types/auth.d.ts              │
+└──────────────┴────────────────────────────────────────────────────────┘
 ```
+
+**Design:** Terminal-style web UI. Monospace font, black background, green/amber text, box-drawing borders, blinking cursors. Keyboard-driven (arrow keys, tab, vim keys). Sub-100ms renders — no React, no virtual DOM. Feels like a military command center, runs like `htop`.
 
 ---
 
