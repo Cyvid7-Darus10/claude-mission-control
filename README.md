@@ -258,7 +258,7 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 |---------|-------------|
 | **Secret Scanner** | Scans tool output for leaked secrets — AWS keys, GitHub tokens, API keys, JWTs, private keys |
 | **Network Access** | Accepts connections from localhost and private network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x) |
-| **Hook Bypass** | `POST /api/events` (hook endpoint) is exempt from auth — hooks don't have browser cookies |
+| **Hook Token** | Hook endpoints (`POST /api/events`, `GET /api/instructions`) require a Bearer token stored in `~/.claude-mission-control/hook-token`. Generated on server start, read by hook script automatically |
 | **Failed Auth Logging** | Invalid access code attempts are logged as security events |
 
 ### Keyboard Shortcuts
@@ -282,6 +282,7 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 |-----------|----------|
 | Server + dashboard code | Where you cloned the repo |
 | SQLite database | `~/.claude-mission-control/data.db` |
+| Hook token | `~/.claude-mission-control/hook-token` (auto-generated, read by hook script) |
 | Hook entries | `~/.claude/settings.json` (PreToolUse, PostToolUse, SubagentStart, SubagentStop, Stop) |
 | Hook script | `<repo>/src/hook/mission-control-hook.js` |
 | Token data source (read-only) | `~/.claude/projects/*/\*.jsonl` (Claude Code session logs) |
@@ -302,7 +303,7 @@ npx tsx src/index.ts uninstall    # Remove hooks from Claude Code
 
 ## API
 
-All endpoints return JSON. Most require authentication (valid session cookie). Exceptions: `POST /api/auth`, `POST /api/events`, `GET /api/instructions/:agentId`.
+All endpoints return JSON. Dashboard endpoints require a session cookie (via access code login). Hook endpoints (`POST /api/events`, `GET /api/instructions/:agentId`) require a Bearer token (`~/.claude-mission-control/hook-token`). `POST /api/auth` is open.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
