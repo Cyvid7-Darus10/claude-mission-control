@@ -310,6 +310,26 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 | `?` | Toggle keyboard shortcuts help |
 | `Esc` | Cancel / unfocus |
 
+### Agent Quick Actions
+
+Hover any agent row to reveal action buttons:
+
+| Action | What It Does |
+|--------|-------------|
+| **Copy Path** | Copies the agent's working directory to clipboard (e.g. `/Users/cyrus/project`) — use this to find the right terminal window |
+| **Copy ID** | Copies the session ID to clipboard — useful for debugging or API calls |
+
+### Mission Management
+
+Click any mission row to expand it and see context-sensitive action buttons:
+
+| Mission Status | Available Actions |
+|---------------|-------------------|
+| **Queued** | Assign to agent (dropdown), Start, Delete |
+| **Active** | Complete, Fail |
+| **Blocked** | Force Unblock |
+| **Completed / Failed** | Requeue |
+
 ---
 
 ## What Gets Installed Where
