@@ -190,6 +190,12 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 
 ### Security
 
+<div align="center">
+<img src="docs/screenshots/security.png" alt="Security panel with radar and 7-layer defense" width="800">
+<br>
+<sub>Security panel: radar visualization, 7-layer defense status, and event log</sub>
+</div>
+
 **Access control:**
 
 | Feature | Description |
@@ -198,6 +204,10 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 | **Session Cookies** | `HttpOnly`, `SameSite=Strict`, 24-hour expiry. No passwords stored |
 | **WebSocket Auth** | WebSocket connections also require a valid session cookie |
 | **Login Page** | Clean login screen at `/login` — auto-submits when 6 digits entered |
+
+<div align="center">
+<img src="docs/screenshots/login.png" alt="Login page" width="500">
+</div>
 
 **7-layer defense system** (visible in the Security panel — click the shield icon):
 
@@ -221,6 +231,12 @@ Smart per-tool summaries cover 10+ tool types including Agent, SendMessage, WebF
 | **Failed Auth Logging** | Invalid access code attempts are logged as security events |
 
 ### Keyboard Shortcuts
+
+<div align="center">
+<img src="docs/screenshots/help.png" alt="Help overlay with keyboard shortcuts" width="600">
+<br>
+<sub>Press <kbd>?</kbd> to open the help overlay</sub>
+</div>
 
 | Key | Action |
 |-----|--------|
