@@ -253,6 +253,13 @@ await shot('mobile-timeline', {
     if (btn) { await btn.click(); await new Promise(r => setTimeout(r, 200)); }
   }
 });
+await shot('mobile-usage', {
+  viewport: mob,
+  action: async (p) => {
+    const btn = await p.$('[data-tab="usage"]');
+    if (btn) { await btn.click(); await new Promise(r => setTimeout(r, 200)); }
+  }
+});
 
 await browser.close();
 srv.stop();
