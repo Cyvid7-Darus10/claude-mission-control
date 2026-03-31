@@ -6,14 +6,21 @@ cd "$SCRIPT_DIR"
 mkdir -p data
 
 echo ""
-echo "  ██████╗ ███████╗██╗   ██╗███████╗██╗     ███████╗███████╗████████╗"
-echo "  ██╔══██╗██╔════╝██║   ██║██╔════╝██║     ██╔════╝██╔════╝╚══██╔══╝"
-echo "  ██║  ██║█████╗  ██║   ██║█████╗  ██║     █████╗  █████╗     ██║   "
-echo "  ██║  ██║██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║     ██╔══╝  ██╔══╝     ██║   "
-echo "  ██████╔╝███████╗ ╚████╔╝ ██║     ███████╗███████╗███████╗   ██║   "
-echo "  ╚═════╝ ╚══════╝  ╚═══╝  ╚═╝     ╚══════╝╚══════╝╚══════╝   ╚═╝   "
+echo "  ███╗   ███╗██╗███████╗███████╗██╗ ██████╗ ███╗   ██╗"
+echo "  ████╗ ████║██║██╔════╝██╔════╝██║██╔═══██╗████╗  ██║"
+echo "  ██╔████╔██║██║███████╗███████╗██║██║   ██║██╔██╗ ██║"
+echo "  ██║╚██╔╝██║██║╚════██║╚════██║██║██║   ██║██║╚██╗██║"
+echo "  ██║ ╚═╝ ██║██║███████║███████║██║╚██████╔╝██║ ╚████║"
+echo "  ╚═╝     ╚═╝╚═╝╚══════╝╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝"
 echo ""
-echo "  Coding Team Orchestrator"
+echo "   ██████╗ ██████╗ ███╗   ██╗████████╗██████╗  ██████╗ ██╗     "
+echo "  ██╔════╝██╔═══██╗████╗  ██║╚══██╔══╝██╔══██╗██╔═══██╗██║     "
+echo "  ██║     ██║   ██║██╔██╗ ██║   ██║   ██████╔╝██║   ██║██║     "
+echo "  ██║     ██║   ██║██║╚██╗██║   ██║   ██╔══██╗██║   ██║██║     "
+echo "  ╚██████╗╚██████╔╝██║ ╚████║   ██║   ██║  ██║╚██████╔╝███████╗"
+echo "   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚══════╝"
+echo ""
+echo "  Mission Tracker for Claude Code"
 echo ""
 
 # Load fnm if available (for Node 22)
@@ -25,7 +32,6 @@ fi
 
 # Check dependencies
 command -v node >/dev/null 2>&1 || { echo "Error: node not found"; exit 1; }
-command -v claude >/dev/null 2>&1 || { echo "Warning: claude CLI not found — agent dispatch won't work"; }
 
 UV="$HOME/.local/bin/uv"
 if ! command -v "$UV" &>/dev/null; then
@@ -54,7 +60,7 @@ npm install --silent 2>/dev/null
 cd ..
 
 # Start backend (in venv)
-echo "  Starting Claude DevFleet API on port 18801..."
+echo "  Starting Mission Control API on port 18801..."
 cd backend
 source .venv/bin/activate
 python3 -m uvicorn app:app --host 0.0.0.0 --port 18801 --reload &
@@ -62,24 +68,28 @@ API_PID=$!
 cd ..
 
 # Start frontend
-echo "  Starting Claude DevFleet UI on port 3100..."
+echo "  Starting Mission Control Dashboard on port 3100..."
 cd frontend
 npx vite --port 3100 &
 UI_PID=$!
 cd ..
 
 echo ""
-echo "  +-----------------------------------------+"
-echo "  |  Claude DevFleet UI   -> http://localhost:3100  |"
-echo "  |  Claude DevFleet API  -> http://localhost:18801 |"
-echo "  +-----------------------------------------+"
+echo "  +------------------------------------------------+"
+echo "  |  Dashboard  -> http://localhost:3100            |"
+echo "  |  API + MCP  -> http://localhost:18801           |"
+echo "  |  API Docs   -> http://localhost:18801/docs      |"
+echo "  +------------------------------------------------+"
+echo ""
+echo "  Connect Claude Code:"
+echo "  claude mcp add mission-control --transport http http://localhost:18801/mcp"
 echo ""
 echo "  Press Ctrl+C to stop all services."
 echo ""
 
 cleanup() {
     echo ""
-    echo "  Shutting down Claude DevFleet..."
+    echo "  Shutting down Mission Control..."
     kill $API_PID $UI_PID 2>/dev/null
     wait $API_PID $UI_PID 2>/dev/null
     echo "  Done."
