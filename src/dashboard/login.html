@@ -175,12 +175,21 @@
 
       // Auto-submit when 6 digits entered
       input.addEventListener('input', function() {
-        // Strip non-digits
         input.value = input.value.replace(/\D/g, '');
         if (input.value.length === 6) {
           form.dispatchEvent(new Event('submit'));
         }
       });
+
+      // Auto-login from QR code URL: /login?code=123456
+      var params = new URLSearchParams(window.location.search);
+      var qrCode = params.get('code');
+      if (qrCode && qrCode.length === 6) {
+        input.value = qrCode;
+        // Clear the code from URL so it's not visible in browser history
+        window.history.replaceState({}, '', '/login');
+        form.dispatchEvent(new Event('submit'));
+      }
     })();
   </script>
 </body>

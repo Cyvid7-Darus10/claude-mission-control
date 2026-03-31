@@ -308,10 +308,35 @@ function printBanner(port: number, accessCode: string, hookToken: string, localO
   console.log('');
   console.log('  \x1b[2mAccess Code:\x1b[0m  \x1b[1m\x1b[33m' + accessCode + '\x1b[0m');
   console.log('');
+
+  // QR code for quick mobile access (includes access code in URL)
   if (!localOnly) {
-    console.log('  \x1b[2mShare the network URL + access code');
-    console.log('  with anyone on the same WiFi.\x1b[0m');
+    const qrUrl = `${networkUrl}/login?code=${accessCode}`;
+    console.log('  \x1b[2mScan to connect (auto-authenticates):\x1b[0m');
+    console.log('');
+    try {
+      const qr = require('qrcode-terminal');
+      qr.generate(qrUrl, { small: true }, function (code: string) {
+        // Indent each line
+        code.split('\n').forEach((line: string) => {
+          console.log('    ' + line);
+        });
+        console.log('');
+        console.log('  \x1b[2mOr share: ' + qrUrl + '\x1b[0m');
+        printBannerFooter();
+      });
+      return; // async — footer printed in callback
+    } catch {
+      // qrcode-terminal not available — skip QR
+      console.log('  \x1b[2mShare: ' + qrUrl + '\x1b[0m');
+    }
   }
+
+  printBannerFooter();
+}
+
+function printBannerFooter(): void {
+  console.log('');
   console.log('  \x1b[2m─────────────────────────────────────────\x1b[0m');
   console.log('  Hooks: Listening for Claude Code events');
   console.log('  Press \x1b[1mCtrl+C\x1b[0m to stop.');

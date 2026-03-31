@@ -453,6 +453,9 @@
       wsFailCount = 0;
       renderConnectionStatus();
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      // Fallback: also fetch via HTTP in case the initial WS messages were missed
+      fetchAgentsHttp();
+      fetchMissions();
     };
 
     ws.onclose = function (e) {
