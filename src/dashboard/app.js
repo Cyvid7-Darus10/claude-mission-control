@@ -799,6 +799,106 @@
 
   // ── Missions panel ────────────────────────────────────────────────────────
 
+  var expandedMissionId = null;
+
+  function patchMission(missionId, fields) {
+    return fetch('/api/missions/' + missionId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+      credentials: 'include',
+    }).then(function (res) {
+      if (!res.ok) return res.json().then(function (b) { showToast('Error: ' + (b.error || res.status)); });
+      return res.json().then(function (updated) {
+        upsertMission(updated);
+        renderMissions();
+        updateHeaderStats();
+      });
+    }).catch(function () { showToast('Failed to update mission'); });
+  }
+
+  function deleteMission(missionId) {
+    return fetch('/api/missions/' + missionId, {
+      method: 'DELETE',
+      credentials: 'include',
+    }).then(function (res) {
+      if (res.ok) {
+        state.missions = state.missions.filter(function (m) { return m.id !== missionId; });
+        expandedMissionId = null;
+        renderMissions();
+        updateHeaderStats();
+        showToast('Mission deleted');
+      } else {
+        return res.json().then(function (b) { showToast('Error: ' + (b.error || res.status)); });
+      }
+    }).catch(function () { showToast('Failed to delete mission'); });
+  }
+
+  function buildMissionActions(mission) {
+    var status = mission.status || 'queued';
+    var actions = createEl('div', { className: 'mission-actions' });
+
+    if (status === 'queued') {
+      // Assign to agent — show a select with active agents
+      var activeAgents = state.agents.filter(function (a) { return a.status === 'active'; });
+      if (activeAgents.length > 0) {
+        var select = createEl('select', { className: 'mission-agent-select' });
+        select.appendChild(createEl('option', { textContent: 'Assign to...', className: 'placeholder-opt' }));
+        select.options[0].disabled = true;
+        select.options[0].selected = true;
+        activeAgents.forEach(function (agent) {
+          var label = agentDisplayName(agent);
+          select.appendChild(createEl('option', { textContent: label }));
+          select.options[select.options.length - 1].value = agent.id;
+        });
+        select.addEventListener('change', function () {
+          if (select.value) {
+            patchMission(mission.id, { assigned_agent_id: select.value, status: 'active' });
+          }
+        });
+        actions.appendChild(select);
+      }
+
+      // Start without agent
+      var startBtn = createEl('button', { className: 'mission-action-btn start', textContent: '\u25B6 START' });
+      startBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'active' }); });
+      actions.appendChild(startBtn);
+
+      // Delete
+      var delBtn = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 DELETE' });
+      delBtn.addEventListener('click', function () { deleteMission(mission.id); });
+      actions.appendChild(delBtn);
+    }
+
+    if (status === 'active') {
+      // Complete
+      var completeBtn = createEl('button', { className: 'mission-action-btn success', textContent: '\u2713 COMPLETE' });
+      completeBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'completed', result: 'Completed from dashboard' }); });
+      actions.appendChild(completeBtn);
+
+      // Fail
+      var failBtn = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 FAIL' });
+      failBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'failed', result: 'Failed from dashboard' }); });
+      actions.appendChild(failBtn);
+    }
+
+    if (status === 'blocked') {
+      // Force unblock
+      var unblockBtn = createEl('button', { className: 'mission-action-btn', textContent: '\u21AA UNBLOCK' });
+      unblockBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'queued' }); });
+      actions.appendChild(unblockBtn);
+    }
+
+    if (status === 'completed' || status === 'failed') {
+      // Requeue
+      var requeueBtn = createEl('button', { className: 'mission-action-btn', textContent: '\u21BB REQUEUE' });
+      requeueBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'queued', assigned_agent_id: null }); });
+      actions.appendChild(requeueBtn);
+    }
+
+    return actions;
+  }
+
   function renderMissions() {
     $missionsBadge.textContent = state.missions.length;
     clearElement($missionsList);
@@ -811,7 +911,8 @@
     state.missions.forEach(function (mission, i) {
       var status = mission.status || 'queued';
       var focused = (state.activePanel === 1 && state.focusedRow[1] === i);
-      var rowClass = 'mission-row' + (focused ? ' focused' : '');
+      var isExpanded = expandedMissionId === mission.id;
+      var rowClass = 'mission-row' + (focused ? ' focused' : '') + (isExpanded ? ' expanded' : '');
 
       var tag = createEl('span', { className: 'status-tag ' + status, textContent: status.toUpperCase() });
       var titleEl = createEl('span', { className: 'mission-title', textContent: mission.title });
@@ -819,12 +920,16 @@
       // Meta: agent assignment + elapsed time
       var metaText = '';
       if (mission.assigned_agent_id) {
-        metaText = '\u2190 ' + mission.assigned_agent_id;
+        var assignedAgent = state.agents.find(function (a) { return a.id === mission.assigned_agent_id; });
+        var agentLabel = assignedAgent ? agentDisplayName(assignedAgent) : mission.assigned_agent_id;
+        metaText = '\u2190 ' + agentLabel;
         if (mission.started_at && status === 'active') {
           metaText += '  ' + elapsed(mission.started_at);
         }
       } else if (mission.completed_at && status === 'completed') {
         metaText = 'completed ' + timeAgo(mission.completed_at);
+      } else if (mission.completed_at && status === 'failed') {
+        metaText = 'failed ' + timeAgo(mission.completed_at);
       } else if (mission.priority) {
         metaText = 'priority: ' + (mission.priority > 5 ? 'HIGH' : mission.priority > 2 ? 'MED' : 'LOW');
       }
@@ -833,6 +938,16 @@
       var topRow = createEl('div', { className: 'mission-top' }, [tag, titleEl, metaEl].filter(Boolean));
 
       var children = [topRow];
+
+      // Description (show when expanded)
+      if (isExpanded && mission.description) {
+        children.push(createEl('div', { className: 'mission-desc', textContent: mission.description }));
+      }
+
+      // Result (show when expanded and completed/failed)
+      if (isExpanded && mission.result && (status === 'completed' || status === 'failed')) {
+        children.push(createEl('div', { className: 'mission-result', textContent: 'Result: ' + mission.result }));
+      }
 
       // Dependency info for blocked missions
       if (status === 'blocked' && mission.depends_on) {
@@ -865,10 +980,26 @@
         }
       }
 
+      // Action buttons (show when expanded)
+      if (isExpanded) {
+        children.push(buildMissionActions(mission));
+      }
+
       var row = createEl('div', { className: rowClass, 'data-mission-id': mission.id }, children);
       $missionsList.appendChild(row);
     });
   }
+
+  // Click to expand/collapse mission
+  $missionsList.addEventListener('click', function (e) {
+    // Don't toggle if clicking an action button or select
+    if (e.target.closest('.mission-action-btn, .mission-agent-select')) return;
+    var row = e.target.closest('[data-mission-id]');
+    if (!row) return;
+    var id = row.getAttribute('data-mission-id');
+    expandedMissionId = (expandedMissionId === id) ? null : id;
+    renderMissions();
+  });
 
   // ── Timeline panel ────────────────────────────────────────────────────────
 
