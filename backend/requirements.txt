@@ -1,6 +1,0 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-aiosqlite==0.20.0
-pydantic==2.10.3
-claude-code-sdk>=0.0.25
-mcp>=1.0.0

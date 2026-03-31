@@ -1,0 +1,52 @@
+{
+  "name": "claude-mission-control",
+  "version": "0.1.0",
+  "description": "Real-time command center dashboard for Claude Code agents",
+  "bin": {
+    "claude-mission-control": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "src/hook/",
+    "src/dashboard/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "ws": "^8.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/better-sqlite3": "^7.0.0",
+    "@types/ws": "^8.0.0",
+    "tsx": "^4.0.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "Apache-2.0",
+  "author": "Cyrus David Pastelero",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cyvid7-Darus10/claude-mission-control"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai",
+    "agent",
+    "dashboard",
+    "mission-control",
+    "mcp",
+    "monitoring"
+  ]
+}
