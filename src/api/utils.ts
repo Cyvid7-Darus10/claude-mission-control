@@ -49,10 +49,11 @@ export function parseBody(req: IncomingMessage): Promise<Record<string, unknown>
  */
 export function sendJson(res: ServerResponse, status: number, data: unknown): void {
   const body = JSON.stringify(data);
-  res.writeHead(status, {
-    'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(body),
-  });
+  // Use setHeader (appends) instead of writeHead options (replaces) to preserve
+  // any previously set headers like Set-Cookie
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Length', Buffer.byteLength(body));
+  res.writeHead(status);
   res.end(body);
 }
 

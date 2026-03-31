@@ -170,34 +170,11 @@
     setTimeout(function () { ring.remove(); }, 2500);
   }
 
-  // ── Render helpers ────────────────────────────────────────────────────────
+  // ── Render helpers (reuse from app.js via MissionControl) ─────────────────
 
-  function formatTime(ts) {
-    if (!ts) return '--:--:--';
-    var d = new Date(ts);
-    return String(d.getHours()).padStart(2, '0') + ':' +
-           String(d.getMinutes()).padStart(2, '0') + ':' +
-           String(d.getSeconds()).padStart(2, '0');
-  }
-
-  function createEl(tag, attrs, children) {
-    var el = document.createElement(tag);
-    if (attrs) {
-      Object.keys(attrs).forEach(function (key) {
-        if (key === 'className') el.className = attrs[key];
-        else if (key === 'textContent') el.textContent = attrs[key];
-        else el[key] = attrs[key];
-      });
-    }
-    if (children) {
-      children.forEach(function (child) { if (child) el.appendChild(child); });
-    }
-    return el;
-  }
-
-  function clearElement(el) {
-    while (el.firstChild) el.removeChild(el.firstChild);
-  }
+  var formatTime = MC.formatTime;
+  var createEl = MC.createEl;
+  var clearElement = MC.clearElement;
 
   function dismissEvent(index) {
     securityEvents.splice(index, 1);

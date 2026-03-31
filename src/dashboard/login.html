@@ -137,25 +137,39 @@
         }
         error.textContent = '';
 
+        error.textContent = 'Authenticating...';
+        error.style.color = 'var(--text-muted)';
+
         fetch('/api/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: code }),
-          credentials: 'same-origin',
+          credentials: 'include',
         })
           .then(function(res) {
+            error.style.color = '';
             if (res.ok) {
-              window.location.href = '/';
-            } else {
+              error.textContent = '';
+              // Small delay to let the cookie settle
+              setTimeout(function() { window.location.href = '/'; }, 200);
+            } else if (res.status === 429) {
+              error.textContent = 'Too many attempts. Wait 15 minutes.';
+              input.value = '';
+            } else if (res.status === 401) {
               return res.json().then(function(body) {
-                error.textContent = body.error || 'Invalid code';
+                error.textContent = 'Wrong code. Check the terminal and try again.';
                 input.value = '';
                 input.focus();
               });
+            } else {
+              error.textContent = 'Server error (' + res.status + '). Try again.';
+              input.value = '';
+              input.focus();
             }
           })
-          .catch(function() {
-            error.textContent = 'Connection failed';
+          .catch(function(err) {
+            error.style.color = '';
+            error.textContent = 'Cannot reach server. Is it running?';
           });
       });
 
