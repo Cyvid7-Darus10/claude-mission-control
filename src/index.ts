@@ -53,8 +53,10 @@ interface ClaudeSettings {
 }
 
 interface HookEntry {
-  type: string;
-  command: string;
+  matcher?: string;
+  hooks?: { type: string; command: string; async?: boolean; timeout?: number }[];
+  type?: string;
+  command?: string;
   description?: string;
   [key: string]: unknown;
 }
@@ -104,24 +106,45 @@ function buildHookEntries(): { event: string; entry: HookEntry }[] {
     {
       event: 'PreToolUse',
       entry: {
-        type: 'command',
-        command: `node "${hookScript}" pre_tool_use`,
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: `node "${hookScript}"`,
+            async: true,
+            timeout: 5,
+          },
+        ],
         description: 'Mission Control: report tool use and fetch instructions',
       },
     },
     {
       event: 'PostToolUse',
       entry: {
-        type: 'command',
-        command: `node "${hookScript}" post_tool_use`,
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: `node "${hookScript}"`,
+            async: true,
+            timeout: 5,
+          },
+        ],
         description: 'Mission Control: report tool completion',
       },
     },
     {
       event: 'Stop',
       entry: {
-        type: 'command',
-        command: `node "${hookScript}" stop`,
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: `node "${hookScript}"`,
+            async: true,
+            timeout: 5,
+          },
+        ],
         description: 'Mission Control: report session end',
       },
     },
