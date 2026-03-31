@@ -109,13 +109,13 @@ npx tsx src/index.ts
 
 Open **http://localhost:4280** in your browser. Enter the **6-digit access code** shown in the terminal.
 
-### Step 4: Use Your Phone as a Companion
+### Step 4: Connect Your Phone
 
-Keep the dashboard on your phone next to your laptop while you work. All updates stream in real-time via WebSocket.
+The terminal shows a **QR code** — scan it with your phone to connect instantly (auto-authenticates, no code needed).
 
-1. Find the **Network URL** in the terminal (e.g., `http://192.168.1.42:4280`)
-2. Open it on your phone's browser
-3. Enter the **6-digit access code**
+Or manually:
+1. Open the **Network URL** shown in the terminal (e.g. `http://192.168.1.42:4280`)
+2. Enter the **6-digit access code**
 
 <div align="center">
 <table>
@@ -167,8 +167,9 @@ flowchart LR
 
 ### Mobile Companion
 
-Open the **Network URL** on your phone to use Mission Control as a side monitor while you code. The mobile view features:
+Scan the **QR code** in the terminal to connect your phone instantly — no typing URLs or access codes. The mobile view features:
 
+- **QR code auto-login** — scan and you're in, fully authenticated
 - **Tab bar** at the bottom — switch between Agents, Missions, Usage, and Timeline
 - **Touch-optimized** — larger tap targets, swipe-friendly lists
 - **Live updates** — same WebSocket connection, real-time events
