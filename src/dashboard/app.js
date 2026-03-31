@@ -1109,10 +1109,19 @@
   if ($clearDone) {
     $clearDone.addEventListener('click', function () {
       var done = state.missions.filter(function (m) { return m.status === 'completed' || m.status === 'failed'; });
-      if (done.length === 0) { showToast('No completed/failed missions'); return; }
-      var count = done.length;
+      if (done.length === 0) { showToast('No completed missions'); return; }
       done.forEach(function (m) { deleteMission(m.id); });
-      showToast('Cleared ' + count + ' finished mission' + (count !== 1 ? 's' : ''));
+      showToast('Cleared ' + done.length + ' mission' + (done.length !== 1 ? 's' : ''));
+    });
+  }
+
+  var $clearAll = document.getElementById('clear-all-missions');
+  if ($clearAll) {
+    $clearAll.addEventListener('click', function () {
+      if (state.missions.length === 0) { showToast('No missions'); return; }
+      var count = state.missions.length;
+      state.missions.slice().forEach(function (m) { deleteMission(m.id); });
+      showToast('Cleared all ' + count + ' missions');
     });
   }
 
