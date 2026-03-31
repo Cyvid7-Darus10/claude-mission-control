@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { getAgents, getAgent, updateAgent, getEvents } from '../db.js';
+import { getAgents, getAgent, updateAgent, deleteAgent, deleteDisconnectedAgents, getEvents } from '../db.js';
 import { parseBody, sendJson, extractId, parseQuery } from './utils.js';
 
 /**
@@ -84,6 +84,23 @@ export async function handleAgents(
       return;
     }
     sendJson(res, 200, updated);
+    return;
+  }
+
+  // DELETE /api/agents/:id
+  if (method === 'DELETE') {
+    // Special: "disconnected" deletes all disconnected agents
+    if (agentId === 'disconnected') {
+      const count = deleteDisconnectedAgents();
+      sendJson(res, 200, { deleted: count });
+      return;
+    }
+    const deleted = deleteAgent(agentId);
+    if (!deleted) {
+      sendJson(res, 404, { error: 'Agent not found' });
+      return;
+    }
+    sendJson(res, 200, { ok: true });
     return;
   }
 

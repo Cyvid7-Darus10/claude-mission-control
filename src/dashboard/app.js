@@ -627,13 +627,31 @@
   var $agentFilters = document.getElementById('agent-filters');
   if ($agentFilters) {
     $agentFilters.addEventListener('click', function (e) {
+      // Clear old agents button
+      var clearBtn = e.target.closest('.agent-clear-btn');
+      if (clearBtn) {
+        e.stopPropagation();
+        fetch('/api/agents/disconnected', { method: 'DELETE', credentials: 'include' })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            var count = data.deleted || 0;
+            if (count === 0) { showToast('No disconnected agents'); return; }
+            // Remove from local state
+            state.agents = state.agents.filter(function (a) { return a.status !== 'disconnected'; });
+            renderAgents();
+            updateHeaderStats();
+            showToast('Cleared ' + count + ' old agent' + (count !== 1 ? 's' : ''));
+          })
+          .catch(function () { showToast('Failed to clear agents'); });
+        return;
+      }
+
       var btn = e.target.closest('.agent-filter-btn');
       if (!btn) return;
-      e.stopPropagation(); // Don't trigger panel collapse
+      e.stopPropagation();
       var filter = btn.getAttribute('data-filter');
       if (!filter) return;
       agentFilter = filter;
-      // Update active class
       $agentFilters.querySelectorAll('.agent-filter-btn').forEach(function (b) {
         b.classList.toggle('active', b.getAttribute('data-filter') === filter);
       });

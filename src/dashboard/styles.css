@@ -1805,6 +1805,21 @@ html, body {
   background: var(--bg-hover);
 }
 
+.agent-clear-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 1px 4px;
+  margin-left: 2px;
+}
+
+.agent-clear-btn:hover {
+  color: var(--danger);
+}
+
 /* ── Agent tree hierarchy ──────────────────────────────── */
 .agent-group {
   border-bottom: 1px solid var(--border);

@@ -329,7 +329,7 @@ export function createServer(port: number = 4280, bindLocal: boolean = false): {
       }
 
       if (url.startsWith('/api/agents')) {
-        if (method === 'GET' || method === 'PATCH') {
+        if (method === 'GET' || method === 'PATCH' || method === 'DELETE') {
           await handleAgents(req, res);
           return;
         }
