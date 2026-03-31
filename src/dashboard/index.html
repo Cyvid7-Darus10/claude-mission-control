@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mission Control</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header id="header">
+    <div class="header-left">
+      <span class="logo">MISSION CONTROL</span>
+      <span class="version">v0.1.0</span>
+    </div>
+    <div class="header-stats">
+      <span class="stat">Agents: <span id="agent-count">0</span></span>
+      <span class="stat">Missions: <span id="mission-count">0</span></span>
+      <span class="stat">Events: <span id="event-count">0</span></span>
+    </div>
+    <div class="header-right">
+      <span id="connection-status" class="status-indicator disconnected">
+        <span class="status-dot"></span>
+        <span class="status-text">DISCONNECTED</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- Main grid -->
+  <main id="main-grid">
+
+    <!-- Agents panel -->
+    <section id="agents-panel" class="panel active-panel" data-panel="agents">
+      <div class="panel-header">
+        <span class="panel-title">AGENTS</span>
+        <span class="panel-badge" id="agents-badge">0</span>
+      </div>
+      <div class="panel-body" id="agents-list">
+        <div class="empty-state">No agents connected</div>
+      </div>
+    </section>
+
+    <!-- Missions panel -->
+    <section id="missions-panel" class="panel" data-panel="missions">
+      <div class="panel-header">
+        <span class="panel-title">MISSIONS</span>
+        <span class="panel-badge" id="missions-badge">0</span>
+      </div>
+      <div class="panel-body" id="missions-list">
+        <div class="empty-state">No missions</div>
+      </div>
+      <div class="panel-footer">
+        <button id="new-mission-btn" class="btn-action" title="New Mission (n)">+ NEW MISSION</button>
+      </div>
+    </section>
+
+    <!-- Timeline panel -->
+    <section id="timeline-panel" class="panel" data-panel="timeline">
+      <div class="panel-header">
+        <span class="panel-title">TIMELINE</span>
+        <span class="panel-badge" id="timeline-badge">0</span>
+      </div>
+      <div class="panel-body" id="timeline-list">
+        <div class="empty-state">Waiting for events...</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- New mission modal -->
+  <div id="mission-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">NEW MISSION</div>
+      <form id="mission-form">
+        <label for="mission-title">Title</label>
+        <input type="text" id="mission-title" placeholder="Mission title..." required>
+        <label for="mission-desc">Description</label>
+        <textarea id="mission-desc" rows="4" placeholder="Mission description..."></textarea>
+        <div class="modal-actions">
+          <button type="button" id="cancel-mission" class="btn-cancel">CANCEL</button>
+          <button type="submit" class="btn-submit">CREATE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Instruction input (bottom bar) -->
+  <footer id="command-bar" class="hidden">
+    <label for="command-input" class="command-label">INSTRUCT &gt;</label>
+    <input type="text" id="command-input" placeholder="Send instruction to selected agent...">
+    <span id="command-target" class="command-target">No agent selected</span>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -32,9 +32,11 @@
               │
 ┌─────────────┴───────────────────────────────────────────┐
 │          Claude Code Hook (runs in each session)         │
-│  PreToolUse:  POST event + GET instructions → stderr     │
-│  PostToolUse: POST event                                 │
-│  Stop:        POST session-end event                     │
+│  PreToolUse:      POST event + GET instructions → stderr │
+│  PostToolUse:     POST event                             │
+│  SubagentStart:   POST subagent spawn event              │
+│  SubagentStop:    POST subagent end event                │
+│  Stop:            POST session-end event                 │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -93,7 +95,7 @@ CREATE TABLE events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   agent_id TEXT NOT NULL,
   session_id TEXT NOT NULL,
-  event_type TEXT NOT NULL,               -- pre_tool_use, post_tool_use, stop
+  event_type TEXT NOT NULL,               -- pre_tool_use, post_tool_use, subagent_start, subagent_stop, stop
   tool_name TEXT,
   tool_input TEXT,                        -- JSON
   tool_output TEXT,                       -- JSON
@@ -173,9 +175,9 @@ claude-mission-control/
 
 | Step | File | What |
 |------|------|------|
-| 5 | `src/services/agent-tracker.ts` | Auto-register agents from events, status transitions (active→idle→disconnected) |
-| 6 | `src/api/events.ts` | `POST /api/events` receives hook data, upserts agent, stores event, broadcasts |
-| 7 | `src/hook/mission-control-hook.js` | Plain JS hook: POST event, GET instructions → stderr. Never crashes, 2s timeout |
+| 5 | `src/services/agent-tracker.ts` | Auto-register agents from events, status transitions (active→idle→disconnected). Deterministic color assignment per agent: `(hash << 5) + hash + charCode` mod 10-color palette — same agent always gets the same color across refreshes |
+| 6 | `src/api/events.ts` | `POST /api/events` receives hook data, upserts agent, stores event, broadcasts. Accepts 5 event types: `pre_tool_use`, `post_tool_use`, `subagent_start`, `subagent_stop`, `stop` |
+| 7 | `src/hook/mission-control-hook.js` | Plain JS hook: POST event, GET instructions → stderr. Never crashes, 2s timeout. Registered for 5 hook types: `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `Stop` |
 
 ### Phase 3: Mission Board + Dependency DAG
 
@@ -245,7 +247,8 @@ claude-mission-control/
 | | | — **Mission list** with status tags `[QUEUED] [ACTIVE] [DONE] [FAILED] [BLOCKED]` |
 | | | — **Color-coded timeline** (each agent = different color) |
 | | | — **Instruction input** (bottom panel, type and send) |
-| | | — **Stuck agent alerts** (blinking `! STUCK` after 2 min) |
+| | | — **Stuck agent alerts** (blinking `! STUCK` after 2 min of no events) |
+| | | — **Tool-call loop detection** (same tool+input 3+ times in a row → `! LOOP` indicator) |
 | | | — **Dependency indicators** (`waiting on: ...` shown inline) |
 | | | — **Keyboard navigation** (arrow keys, tab, vim keys) |
 | | | — **Sub-100ms render** — no React, no virtual DOM, direct DOM manipulation |
@@ -262,7 +265,7 @@ claude-mission-control/
 | Step | File | What |
 |------|------|------|
 | 14 | `src/api/agents.ts` | GET/PATCH agents, rename, event history per agent |
-| 15 | `src/services/agent-tracker.ts` (enhance) | 10s interval timer for idle/disconnect detection, auto-fail orphaned missions |
+| 15 | `src/services/agent-tracker.ts` (enhance) | 10s interval timer for idle/disconnect detection, auto-fail orphaned missions. Event buffer: max 500 events in dashboard (drop oldest 10 on overflow), configurable DB retention (default 7 days, `DELETE FROM events WHERE timestamp < ?` on startup) |
 
 ### Phase 7: Tests
 
@@ -340,16 +343,16 @@ Glow:           rgba(88,166,255,0.3)  (focus ring)
 
 ## Inspiration Sources
 
-| Feature | Inspired By | Stars |
-|---------|------------|-------|
-| Kanban mission board | MeisnerDan/mission-control | 317 |
-| Color-coded timeline | disler/observability | 1,300 |
-| Agent decision graph | agent-flow | 524 |
-| Anti-pattern detection | agenttop | 42 |
-| Stuck agent alerts | agenttop | 42 |
-| Cost forensics | sniffly | 1,191 |
-| Confidence scoring | builderz-labs/mission-control | 3,600 |
-| Hook-based architecture | disler/observability | 1,300 |
+| Feature | Inspired By | Stars | How We Use It |
+|---------|------------|-------|---------------|
+| Mission list with states | MeisnerDan/mission-control | 317 | Queued/Active/Done/Failed/Blocked status tags with dependency tracking |
+| Color-coded timeline | disler/observability | 1,300 | Deterministic color hash per agent — same agent always same color |
+| 5-event hook architecture | disler/observability | 1,300 | PreToolUse, PostToolUse, SubagentStart, SubagentStop, Stop |
+| Subagent lifecycle tracking | disler/observability | 1,300 | SubagentStart/Stop hooks give visibility into spawned subagents |
+| Tool-call loop detection | agenttop + builderz-labs | 42 / 3,600 | Same tool+input 3+ times in a row → `! LOOP` alert |
+| Stuck agent alerts | agenttop | 42 | No events for 2+ min → blinking `! STUCK` indicator |
+| Event buffer management | disler/observability | 1,300 | Max 500 in dashboard (drop oldest 10), 7-day DB retention |
+| Instruction injection | Original (our design) | — | PreToolUse hook GETs instructions, writes to stderr |
 
 ## Tech Stack
 
@@ -404,6 +407,26 @@ Installed into `~/.claude/settings.json`:
       }],
       "description": "Mission Control: report tool results"
     }],
+    "SubagentStart": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "node \"/path/to/mission-control-hook.js\"",
+        "async": true,
+        "timeout": 5
+      }],
+      "description": "Mission Control: report subagent spawn"
+    }],
+    "SubagentStop": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "node \"/path/to/mission-control-hook.js\"",
+        "async": true,
+        "timeout": 5
+      }],
+      "description": "Mission Control: report subagent end"
+    }],
     "Stop": [{
       "matcher": "*",
       "hooks": [{
@@ -429,6 +452,10 @@ Installed into `~/.claude/settings.json`:
 - [ ] Send instruction from dashboard → agent receives it via stderr
 - [ ] Agents show correct status: active (green), idle (yellow), disconnected (gray)
 - [ ] Stuck agent alert after 2 min of no activity
+- [ ] Tool-call loop detection: `! LOOP` when same tool+input 3+ times in a row
+- [ ] Subagents appear on dashboard when spawned (via SubagentStart hook)
+- [ ] Each agent gets a consistent color across page refreshes (deterministic hash)
+- [ ] Event buffer capped at 500 in dashboard, 7-day DB retention
 - [ ] Data persists across server restarts
 - [ ] WebSocket auto-reconnects after server restart
 - [ ] Hook never crashes or blocks Claude Code
