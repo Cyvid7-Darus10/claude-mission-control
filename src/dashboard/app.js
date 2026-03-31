@@ -983,7 +983,19 @@
         });
         select.addEventListener('change', function () {
           if (select.value) {
-            patchMission(mission.id, { assigned_agent_id: select.value, status: 'active' });
+            var agentId = select.value;
+            // Assign and send instruction so the agent knows about the mission
+            patchMission(mission.id, { assigned_agent_id: agentId, status: 'active' });
+            var instrMsg = '[Mission Assigned] ' + mission.title;
+            if (mission.description) instrMsg += ' — ' + mission.description;
+            fetch('/api/instructions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ target_agent_id: agentId, message: instrMsg }),
+              credentials: 'include',
+            }).then(function () {
+              showToast('Assigned + instruction sent to agent');
+            }).catch(function () {});
           }
         });
         actions.appendChild(select);
@@ -1003,12 +1015,33 @@
     if (status === 'active') {
       // Complete
       var completeBtn = createEl('button', { className: 'mission-action-btn success', textContent: '\u2713 COMPLETE' });
-      completeBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'completed', result: 'Completed from dashboard' }); });
+      completeBtn.addEventListener('click', function () {
+        patchMission(mission.id, { status: 'completed', result: 'Completed from dashboard' });
+        // Notify agent if assigned
+        if (mission.assigned_agent_id) {
+          fetch('/api/instructions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_agent_id: mission.assigned_agent_id, message: '[Mission Complete] "' + mission.title + '" has been marked as done. You can move on.' }),
+            credentials: 'include',
+          }).catch(function () {});
+        }
+      });
       actions.appendChild(completeBtn);
 
       // Fail
       var failBtn = createEl('button', { className: 'mission-action-btn danger', textContent: '\u2715 FAIL' });
-      failBtn.addEventListener('click', function () { patchMission(mission.id, { status: 'failed', result: 'Failed from dashboard' }); });
+      failBtn.addEventListener('click', function () {
+        patchMission(mission.id, { status: 'failed', result: 'Failed from dashboard' });
+        if (mission.assigned_agent_id) {
+          fetch('/api/instructions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_agent_id: mission.assigned_agent_id, message: '[Mission Failed] "' + mission.title + '" was marked as failed. Stop working on this and await further instructions.' }),
+            credentials: 'include',
+          }).catch(function () {});
+        }
+      });
       actions.appendChild(failBtn);
     }
 
