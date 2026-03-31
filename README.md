@@ -88,41 +88,26 @@ Open another terminal and run `claude` as usual. Your agent will appear on the d
 
 ## How It Works
 
-```
-Claude Code runs a tool (Edit, Bash, Read, Write, etc.)
-    │
-    ▼
-Hook fires (PreToolUse / PostToolUse / Stop)
-    │
-    ▼
-Hook script POSTs event to localhost:4280/api/events
-    │
-    ▼
-Server stores in SQLite + broadcasts via WebSocket
-    │
-    ▼
-Dashboard updates in real-time
-```
-
 ```mermaid
-sequenceDiagram
-    participant A as Claude Code Agent
-    participant H as Hook Script
-    participant S as Mission Control Server
-    participant D as Dashboard (Browser)
+flowchart LR
+    A["🤖 Claude Code<br/>Agent runs a tool"]
+    H["⚡ Hook Script<br/>PreToolUse / PostToolUse / Stop"]
+    S["🖥️ Mission Control<br/>SQLite + WebSocket"]
+    D["📊 Dashboard<br/>Real-time updates"]
+    I["💬 You<br/>Send instruction"]
 
-    A->>A: Edit src/auth.ts
-    A->>H: PreToolUse hook fires
-    H->>S: POST /api/events
-    S->>D: WebSocket broadcast
-    D->>D: Timeline + agent panel update
+    A -->|"hook fires"| H
+    H -->|"POST /api/events"| S
+    S -->|"WebSocket broadcast"| D
+    I -->|"POST /api/instructions"| S
+    S -->|"GET on next hook"| H
+    H -->|"stderr warning"| A
 
-    D->>S: POST /api/instructions {agent: "alpha", msg: "Focus on JWT"}
-    Note over H: Next tool call...
-    A->>H: PreToolUse hook fires
-    H->>S: GET /api/instructions/alpha
-    S-->>H: {message: "Focus on JWT"}
-    H->>A: Write to stderr (agent sees it)
+    style A fill:#1a1a2e,stroke:#58a6ff,color:#e6edf3
+    style H fill:#1a1a2e,stroke:#d29922,color:#e6edf3
+    style S fill:#1a1a2e,stroke:#3fb950,color:#e6edf3
+    style D fill:#1a1a2e,stroke:#bc8cff,color:#e6edf3
+    style I fill:#1a1a2e,stroke:#f85149,color:#e6edf3
 ```
 
 ---
