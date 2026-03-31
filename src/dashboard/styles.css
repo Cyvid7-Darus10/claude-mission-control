@@ -627,6 +627,16 @@ html, body {
   padding-left: 10px;
 }
 
+/* Highlight mission linked to selected agent */
+.mission-row.agent-linked {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--success);
+}
+
+.mission-row.agent-linked .mission-title {
+  color: var(--text-bright);
+}
+
 .mission-expanded {
   margin-top: 6px;
   padding-top: 6px;
