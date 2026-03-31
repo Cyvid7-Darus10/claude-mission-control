@@ -1,9 +1,32 @@
 Claude Mission Control
 Copyright 2026 Cyrus David Pastelero
 
-This product is a derivative work of Claude DevFleet,
-originally created by LEC-AI (https://github.com/LEC-AI/claude-devfleet),
-licensed under the Apache License, Version 2.0.
+Licensed under the Apache License, Version 2.0.
+https://github.com/Cyvid7-Darus10/claude-mission-control
 
-This product includes software developed by:
-- LEC-AI — Original claude-devfleet platform
+ATTRIBUTION REQUIREMENT:
+Any use, reproduction, or distribution of this software, or any derivative
+work based on this software, must include clear attribution to the original
+author and project:
+
+    Claude Mission Control by Cyrus David Pastelero
+    https://github.com/Cyvid7-Darus10/claude-mission-control
+
+This includes, but is not limited to:
+- Retaining this NOTICE file in all copies or substantial portions
+- Including attribution in the README or documentation of derivative works
+- Displaying attribution in the UI of derivative works where practical
+
+THIRD-PARTY CREDITS:
+This project was originally inspired by Claude DevFleet by LEC-AI
+(https://github.com/LEC-AI/claude-devfleet), licensed under Apache 2.0.
+
+Additional ideas were adopted from:
+- sniffly by Chip Huyen (https://github.com/chiphuyen/sniffly)
+- claude-hud by Jarrod Watts (https://github.com/jarrodwatts/claude-hud)
+- builderz-labs/mission-control (https://github.com/builderz-labs/mission-control)
+- disler/observability (https://github.com/disler/claude-code-hooks-multi-agent-observability)
+- claude-squad by SMTG AI (https://github.com/smtg-ai/claude-squad)
+- agenttop by Vicarious (https://github.com/vicarious11/agenttop)
+- MeisnerDan/mission-control (https://github.com/MeisnerDan/mission-control)
+- claude_code_agent_farm by Dicklesworthstone (https://github.com/Dicklesworthstone/claude_code_agent_farm)
