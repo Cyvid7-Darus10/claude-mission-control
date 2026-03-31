@@ -526,14 +526,6 @@ If you build something with this, a link back to [this repo](https://github.com/
 
 <div align="center">
 
-### Also by Cyrus
-
-| Project | Description |
-|---------|-------------|
-| [claude-mission-control](https://github.com/Cyvid7-Darus10/claude-mission-control) | Real-time command center for Claude Code agents |
-| [claude-code-config](https://github.com/Cyvid7-Darus10/claude-code-config) | Claude Code configuration: 29 agents, 60 commands, 60 skills, 65 rules |
-| [dotfiles](https://github.com/Cyvid7-Darus10/dotfiles) | Personal dotfiles with Catppuccin Mocha theme across Zsh, tmux, Neovim, Starship |
-
 Made by [Cyrus David Pastelero](https://github.com/Cyvid7-Darus10)
 
 </div>
