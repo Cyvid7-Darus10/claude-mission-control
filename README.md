@@ -123,6 +123,7 @@ Or manually:
 <td align="center"><img src="docs/screenshots/mobile-agents.png" alt="Mobile agents view" width="220"><br><sub>Agents</sub></td>
 <td align="center"><img src="docs/screenshots/mobile-timeline.png" alt="Mobile timeline view" width="220"><br><sub>Timeline</sub></td>
 <td align="center"><img src="docs/screenshots/mobile-missions.png" alt="Mobile missions view" width="220"><br><sub>Missions</sub></td>
+<td align="center"><img src="docs/screenshots/mobile-usage.png" alt="Mobile usage view" width="220"><br><sub>Usage</sub></td>
 <td align="center"><img src="docs/screenshots/mobile-login.png" alt="Mobile login" width="220"><br><sub>Login</sub></td>
 </tr>
 </table>
