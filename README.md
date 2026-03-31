@@ -200,13 +200,20 @@ Each agent row shows rich, at-a-glance status:
 
 ### Mission Board
 
+Missions are **auto-created** from agent activity — you don't need to set them up manually.
+
+| Source | How It Creates a Mission |
+|--------|------------------------|
+| **Subagent spawn** | Uses the `description` from the Agent tool (e.g. "Fix build errors", "Code review") |
+| **Main agent first tool call** | Derives from project folder + first action (e.g. "mission-control — server.ts") |
+| **Session end (Stop)** | Auto-completes the agent's active mission |
+
 | Feature | Description |
 |---------|-------------|
-| **Create missions** | Title, description, priority. Assign to agents. Keyboard shortcut: `n` |
-| **Status tracking** | Queued → Active → Completed/Failed with colored status tags |
-| **Dependency DAG** | Missions can depend on other missions. Blocked missions auto-unblock when deps complete. Cycle detection prevents loops |
-| **Subtask progress** | Missions support a `subtasks` JSON array of `{id, title, done}` items. Dashboard renders a green progress bar with X/Y count |
-| **Send instructions** | Select an agent, type a message → delivered via stderr on next tool call |
+| **Auto-populated** | Missions appear as agents start working — no manual creation needed |
+| **Live status** | Active (agent working) → Completed (session ended) with timestamps |
+| **Click to expand** | Shows description and action buttons (DONE, DELETE) |
+| **CLEAR COMPLETED** | Bulk-remove finished missions to keep the board clean |
 
 ### Sending Instructions to Agents
 
@@ -374,14 +381,14 @@ Hover any agent row to reveal action buttons:
 
 ### Mission Management
 
-Click any mission row to expand it and see context-sensitive action buttons:
+Missions auto-create from agent activity. Click any mission to expand and manage:
 
-| Mission Status | Available Actions |
-|---------------|-------------------|
-| **Queued** | Assign to agent (dropdown), Start, Delete |
-| **Active** | Complete, Fail |
-| **Blocked** | Force Unblock |
-| **Completed / Failed** | Requeue |
+| Action | Description |
+|--------|-------------|
+| **DONE** | Mark a mission as completed |
+| **REOPEN** | Move a completed mission back to open |
+| **DELETE** | Remove a mission |
+| **CLEAR COMPLETED** | Bulk-remove all finished missions |
 
 ---
 
