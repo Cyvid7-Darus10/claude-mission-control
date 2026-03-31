@@ -544,6 +544,19 @@
   }
 
   // Fetch missions via REST (server doesn't send them on WS connect)
+  function fetchAgentsHttp() {
+    fetch('/api/agents', { credentials: 'include' })
+      .then(function (res) { if (!res.ok) return []; return res.json(); })
+      .then(function (agents) {
+        if (Array.isArray(agents) && agents.length > 0) {
+          state.agents = agents;
+          renderAgents();
+          updateHeaderStats();
+        }
+      })
+      .catch(function () {});
+  }
+
   function fetchMissions() {
     fetch('/api/missions')
       .then(function (res) { return res.json(); })
