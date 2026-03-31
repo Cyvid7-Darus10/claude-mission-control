@@ -1016,14 +1016,65 @@
       var topRow = createEl('div', { className: 'mission-top' }, [checkbox, titleEl, metaEl].filter(Boolean));
       var children = [topRow];
 
-      // Description (show when expanded)
-      if (isExpanded && mission.description) {
-        children.push(createEl('div', { className: 'mission-desc', textContent: mission.description }));
-      }
-
-      // Action buttons (show when expanded)
+      // Expanded details
       if (isExpanded) {
-        children.push(buildMissionActions(mission));
+        var details = createEl('div', { className: 'mission-expanded' });
+
+        // Description
+        if (mission.description) {
+          details.appendChild(createEl('div', { className: 'mission-desc', textContent: mission.description }));
+        }
+
+        // Agent info
+        if (mission.assigned_agent_id) {
+          var agent = state.agents.find(function (a) { return a.id === mission.assigned_agent_id; });
+          var agentInfo = createEl('div', { className: 'mission-agent-info' });
+
+          var agentName = agent ? agentDisplayName(agent) : mission.assigned_agent_id;
+          var agentStatus = agent ? agent.status : 'unknown';
+          var dotChar = STATUS_DOTS[agentStatus] || STATUS_DOTS.disconnected;
+
+          agentInfo.appendChild(createEl('span', { className: 'mission-info-label', textContent: 'Agent:' }));
+          agentInfo.appendChild(createEl('span', { className: 'agent-dot ' + agentStatus, textContent: dotChar }));
+          agentInfo.appendChild(createEl('span', { className: 'mission-info-value', textContent: agentName }));
+
+          if (agent && agent.cwd) {
+            agentInfo.appendChild(createEl('br'));
+            agentInfo.appendChild(createEl('span', { className: 'mission-info-label', textContent: 'Path:' }));
+            agentInfo.appendChild(createEl('span', { className: 'mission-info-value mono', textContent: agent.cwd }));
+          }
+
+          if (agent && agent.model) {
+            agentInfo.appendChild(createEl('br'));
+            agentInfo.appendChild(createEl('span', { className: 'mission-info-label', textContent: 'Model:' }));
+            agentInfo.appendChild(createEl('span', { className: 'mission-info-value', textContent: agent.model }));
+          }
+
+          if (agent && agent.current_tool) {
+            agentInfo.appendChild(createEl('br'));
+            agentInfo.appendChild(createEl('span', { className: 'mission-info-label', textContent: 'Doing:' }));
+            agentInfo.appendChild(createEl('span', { className: 'mission-info-value', textContent: agent.current_tool }));
+          }
+
+          details.appendChild(agentInfo);
+        }
+
+        // Timestamps
+        var times = createEl('div', { className: 'mission-timestamps' });
+        if (mission.started_at) {
+          times.appendChild(createEl('span', { textContent: 'Started ' + timeAgo(mission.started_at) }));
+        }
+        if (mission.completed_at) {
+          times.appendChild(createEl('span', { textContent: (isDone ? 'Completed ' : 'Ended ') + timeAgo(mission.completed_at) }));
+        }
+        if (mission.created_at && !mission.started_at) {
+          times.appendChild(createEl('span', { textContent: 'Created ' + timeAgo(mission.created_at) }));
+        }
+        if (times.childNodes.length > 0) details.appendChild(times);
+
+        // Action buttons
+        details.appendChild(buildMissionActions(mission));
+        children.push(details);
       }
 
       var row = createEl('div', { className: rowClass, 'data-mission-id': mission.id }, children);
