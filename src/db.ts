@@ -286,6 +286,16 @@ export function updateAgent(
   return getAgent(id);
 }
 
+export function deleteAgent(id: string): boolean {
+  const result = db.prepare('DELETE FROM agents WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+export function deleteDisconnectedAgents(): number {
+  const result = db.prepare("DELETE FROM agents WHERE status = 'disconnected'").run();
+  return result.changes;
+}
+
 // -- Missions ---------------------------------------------------------------
 
 const stmtCreateMission = db.prepare(`
