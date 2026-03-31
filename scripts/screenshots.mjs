@@ -54,76 +54,128 @@ const cookieVal = cookie.split('=')[1];
 console.log('Auth:', cookie ? 'OK' : 'FAILED');
 
 // ── Seed data ───────────────────────────────────────────
-// Each session gets ONE initial event (triggers auto-mission) then a few follow-ups.
-// No manual mission creation — auto-missions handle it.
+// Realistic multi-project scenario: 4 agents across 3 projects with subagents.
 
-// 3 main agents in different projects
+const d = (ms) => new Promise(r => setTimeout(r, ms));
+
+// ── Agent 1: Backend developer working on auth ──
 await hookPost('/api/events', {
   session_id: 'sess-alpha', agent_id: 'main', event_type: 'pre_tool_use',
-  tool_name: 'Edit', tool_input: { file_path: '/projects/mission-control/src/server.ts' },
-  cwd: '/projects/mission-control',
+  tool_name: 'Read', tool_input: { file_path: '/projects/saas-app/src/auth/middleware.ts' },
+  cwd: '/projects/saas-app',
 });
+await d(50);
 await hookPost('/api/events', {
   session_id: 'sess-alpha', agent_id: 'main', event_type: 'pre_tool_use',
-  tool_name: 'Bash', tool_input: { command: 'npm test --coverage' },
-  cwd: '/projects/mission-control',
+  tool_name: 'Edit', tool_input: { file_path: '/projects/saas-app/src/auth/jwt.ts', old_string: 'TODO', new_string: 'jwt.verify(token, secret)' },
+  cwd: '/projects/saas-app',
+});
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-alpha', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Bash', tool_input: { command: 'npm test -- --grep auth' },
+  cwd: '/projects/saas-app',
+});
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-alpha', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Edit', tool_input: { file_path: '/projects/saas-app/src/routes/api.ts' },
+  cwd: '/projects/saas-app',
 });
 
+// Subagent: security review
+await d(50);
 await hookPost('/api/events', {
-  session_id: 'sess-bravo', agent_id: 'main', event_type: 'pre_tool_use',
-  tool_name: 'Edit', tool_input: { file_path: '/projects/api-service/src/routes/auth.ts' },
-  cwd: '/projects/api-service',
+  session_id: 'sess-alpha', agent_id: 'sub-sec', event_type: 'subagent_start',
+  tool_name: 'Agent', tool_input: { description: 'Security review of JWT implementation' },
 });
+await d(50);
 await hookPost('/api/events', {
-  session_id: 'sess-bravo', agent_id: 'main', event_type: 'pre_tool_use',
-  tool_name: 'Read', tool_input: { file_path: '/projects/api-service/package.json' },
-  cwd: '/projects/api-service',
+  session_id: 'sess-alpha', agent_id: 'sub-sec', event_type: 'pre_tool_use',
+  tool_name: 'Grep', tool_input: { pattern: 'API_KEY|SECRET|password' },
 });
 
+// ── Agent 2: Frontend developer on React dashboard ──
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Edit', tool_input: { file_path: '/projects/dashboard/src/components/AgentCard.tsx' },
+  cwd: '/projects/dashboard',
+});
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Write', tool_input: { file_path: '/projects/dashboard/src/hooks/useWebSocket.ts' },
+  cwd: '/projects/dashboard',
+});
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Bash', tool_input: { command: 'npm run dev' },
+  cwd: '/projects/dashboard',
+});
+
+// Subagent: writing tests
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'sub-tests', event_type: 'subagent_start',
+  tool_name: 'Agent', tool_input: { description: 'Write component tests for AgentCard' },
+});
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-bravo', agent_id: 'sub-tests', event_type: 'pre_tool_use',
+  tool_name: 'Write', tool_input: { file_path: '/projects/dashboard/test/AgentCard.test.tsx' },
+});
+
+// ── Agent 3: DevOps — CI/CD pipeline (completed) ──
+await d(50);
 await hookPost('/api/events', {
   session_id: 'sess-charlie', agent_id: 'main', event_type: 'pre_tool_use',
-  tool_name: 'Bash', tool_input: { command: 'npx playwright test' },
-  cwd: '/projects/web-frontend',
+  tool_name: 'Edit', tool_input: { file_path: '/projects/saas-app/.github/workflows/ci.yml' },
+  cwd: '/projects/infra',
 });
-
-// 2 subagents with descriptive names
+await d(50);
 await hookPost('/api/events', {
-  session_id: 'sess-alpha', agent_id: 'sub-security-review', event_type: 'subagent_start',
-  tool_name: 'Agent', tool_input: { description: 'Security review of auth module' },
+  session_id: 'sess-charlie', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Bash', tool_input: { command: 'docker build -t saas-app:latest .' },
+  cwd: '/projects/infra',
 });
-await hookPost('/api/events', {
-  session_id: 'sess-alpha', agent_id: 'sub-security-review', event_type: 'pre_tool_use',
-  tool_name: 'Grep', tool_input: { pattern: 'API_KEY|SECRET' },
-});
-
-await hookPost('/api/events', {
-  session_id: 'sess-bravo', agent_id: 'sub-test-writer', event_type: 'subagent_start',
-  tool_name: 'Agent', tool_input: { description: 'Write unit tests for routes' },
-});
-await hookPost('/api/events', {
-  session_id: 'sess-bravo', agent_id: 'sub-test-writer', event_type: 'pre_tool_use',
-  tool_name: 'Write', tool_input: { file_path: '/projects/api-service/test/auth.test.ts' },
-});
-
-// Complete one agent's session to show a completed mission
+// Session ended — auto-completes mission
+await d(50);
 await hookPost('/api/events', {
   session_id: 'sess-charlie', agent_id: 'main', event_type: 'stop',
-  cwd: '/projects/web-frontend',
+  cwd: '/projects/infra',
 });
 
-// Instruction to show in the instruct panel
+// ── Agent 4: Test runner ──
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-delta', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Bash', tool_input: { command: 'npx vitest run --coverage' },
+  cwd: '/projects/saas-app',
+});
+await d(50);
+await hookPost('/api/events', {
+  session_id: 'sess-delta', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Read', tool_input: { file_path: '/projects/saas-app/coverage/lcov-report/index.html' },
+  cwd: '/projects/saas-app',
+});
+
+// ── Instruction (shows in instruct panel) ──
 await authedReq('POST', '/api/instructions', {
   target_agent_id: 'sess-alpha:main',
-  message: 'Focus on JWT validation, skip OAuth for now',
+  message: 'Skip OAuth for now — focus on JWT refresh tokens',
 }, cookie);
 
-// Trigger a security event
+// ── Security event (sensitive file access) ──
+await d(50);
 await hookPost('/api/events', {
-  session_id: 'sess-charlie', agent_id: 'main', event_type: 'pre_tool_use',
-  tool_name: 'Read', tool_input: { file_path: '/Users/cyrus/.env.local' },
+  session_id: 'sess-delta', agent_id: 'main', event_type: 'pre_tool_use',
+  tool_name: 'Read', tool_input: { file_path: '/projects/saas-app/.env.production' },
+  cwd: '/projects/saas-app',
 });
 
-await new Promise(r => setTimeout(r, 200));
+await d(300);
 
 console.log('Data seeded.');
 await new Promise(r => setTimeout(r, 500));
@@ -151,8 +203,19 @@ async function shot(name, opts = {}) {
 // Login
 await shot('login', { url: '/login' });
 
-// Dashboard
-await shot('dashboard');
+// Dashboard — click an agent to show instruct panel, then move mouse away to hide tooltip
+await shot('dashboard', {
+  action: async (p) => {
+    const agents = await p.$$('.agent-row');
+    if (agents.length > 1) {
+      await agents[1].click();
+      await new Promise(r => setTimeout(r, 200));
+    }
+    // Move mouse to center of page to dismiss any tooltip
+    await p.mouse.move(720, 450);
+    await new Promise(r => setTimeout(r, 300));
+  },
+});
 
 // Security panel
 await shot('security', {
