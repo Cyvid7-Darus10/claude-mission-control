@@ -55,7 +55,7 @@ export interface Instruction {
   readonly delivered_at: string | null;
 }
 
-export interface DashboardStats {
+interface DashboardStats {
   readonly totalAgents: number;
   readonly activeAgents: number;
   readonly idleAgents: number;
@@ -392,6 +392,4 @@ export function getDashboardStats(): DashboardStats {
   };
 }
 
-// -- Expose raw db for advanced use / testing -------------------------------
-
-export { db };
+// db instance is module-private; consumers use named query functions above

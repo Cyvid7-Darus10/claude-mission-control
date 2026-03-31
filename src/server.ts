@@ -117,6 +117,16 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
     }
   });
 
+  // Handle port-in-use before WSS attaches (WSS re-emits server errors)
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n  ERROR: Port ${port} is already in use.`);
+      console.error(`  Try: kill $(lsof -ti :${port}) or use --port <number>\n`);
+      process.exit(1);
+    }
+    throw err;
+  });
+
   // WebSocket server on the same HTTP server
   const wss = new WebSocketServer({ server });
 
@@ -129,19 +139,37 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
     ws.send(JSON.stringify({ type: 'events', data: recentEvents }));
 
     // Forward event bus events to this WebSocket client
-    const handler = (eventName: string, data: unknown) => {
+    const onAgentUpdate = (d: unknown) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: eventName, data }));
+        ws.send(JSON.stringify({ type: 'agent:update', data: d }));
+      }
+    };
+    const onEventNew = (d: unknown) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'event:new', data: d }));
+      }
+    };
+    const onMissionUpdate = (d: unknown) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'mission:update', data: d }));
+      }
+    };
+    const onInstructionNew = (d: unknown) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'instruction:new', data: d }));
       }
     };
 
-    eventBus.on('agent:update', (d) => handler('agent:update', d));
-    eventBus.on('event:new', (d) => handler('event:new', d));
-    eventBus.on('mission:update', (d) => handler('mission:update', d));
-    eventBus.on('instruction:new', (d) => handler('instruction:new', d));
+    eventBus.on('agent:update', onAgentUpdate);
+    eventBus.on('event:new', onEventNew);
+    eventBus.on('mission:update', onMissionUpdate);
+    eventBus.on('instruction:new', onInstructionNew);
 
     ws.on('close', () => {
-      eventBus.removeAllListeners();
+      eventBus.off('agent:update', onAgentUpdate);
+      eventBus.off('event:new', onEventNew);
+      eventBus.off('mission:update', onMissionUpdate);
+      eventBus.off('instruction:new', onInstructionNew);
     });
 
     ws.on('error', (err) => {

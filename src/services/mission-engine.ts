@@ -11,14 +11,14 @@ import { eventBus } from "./event-bus";
 // Types
 // ---------------------------------------------------------------------------
 
-export type MissionStatus =
+type MissionStatus =
   | "queued"
   | "active"
   | "completed"
   | "failed"
   | "blocked";
 
-export interface CreateMissionInput {
+interface CreateMissionInput {
   readonly id: string;
   readonly title: string;
   readonly description?: string | null;
