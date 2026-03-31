@@ -135,21 +135,39 @@
   function addRadarBlip(evt) {
     if (!$radarBlips) return;
 
+    // Place blip at a random position — severity determines distance from center
+    // Critical = closer to center (more threatening), info = outer rings
     var angle = Math.random() * Math.PI * 2;
-    var radius = 15 + Math.random() * 70;
+    var minR, maxR;
+    if (evt.severity === 'critical') { minR = 15; maxR = 40; }
+    else if (evt.severity === 'warn') { minR = 30; maxR = 60; }
+    else { minR = 50; maxR = 80; }
+    var radius = minR + Math.random() * (maxR - minR);
     var cx = 100 + Math.cos(angle) * radius;
     var cy = 100 + Math.sin(angle) * radius;
 
     var svgNS = 'http://www.w3.org/2000/svg';
+
+    // Expanding ring (sonar pulse effect)
+    var ring = document.createElementNS(svgNS, 'circle');
+    ring.setAttribute('cx', String(cx));
+    ring.setAttribute('cy', String(cy));
+    ring.setAttribute('r', '4');
+    ring.setAttribute('class', 'radar-blip-ring ' + evt.severity);
+    $radarBlips.appendChild(ring);
+
+    // Main blip dot
     var blip = document.createElementNS(svgNS, 'circle');
     blip.setAttribute('cx', String(cx));
     blip.setAttribute('cy', String(cy));
-    blip.setAttribute('r', '3');
+    blip.setAttribute('r', evt.severity === 'critical' ? '5' : '3');
     blip.setAttribute('class', 'radar-blip ' + evt.severity);
     $radarBlips.appendChild(blip);
 
+    // Clean up after animation completes
     var duration = evt.severity === 'critical' ? 6000 : 4000;
     setTimeout(function () { blip.remove(); }, duration);
+    setTimeout(function () { ring.remove(); }, 2500);
   }
 
   // ── Render helpers ────────────────────────────────────────────────────────

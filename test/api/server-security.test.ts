@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch, hookFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
@@ -7,16 +7,18 @@ const { createServer } = await import('../../src/server');
 
 let stop: () => void;
 let f: ReturnType<typeof authedFetch>;
+let hf: ReturnType<typeof hookFetch>;
 const PORT = 14284;
 const BASE = `http://localhost:${PORT}`;
 
 beforeAll(async () => {
-  const server = createServer(PORT);
+  const server = createServer(PORT, true);
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
   const cookie = await authenticate(BASE, server.accessCode);
   f = authedFetch(cookie);
+  hf = hookFetch(server.hookToken);
 });
 
 afterAll(() => {
@@ -44,8 +46,8 @@ describe('authentication', () => {
     expect(res.status).toBe(401);
   });
 
-  it('allows POST /api/events without auth (hook endpoint)', async () => {
-    const res = await fetch(`${BASE}/api/events`, {
+  it('allows POST /api/events with valid hook token', async () => {
+    const res = await hf(`${BASE}/api/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -56,6 +58,20 @@ describe('authentication', () => {
       }),
     });
     expect(res.status).toBe(201);
+  });
+
+  it('rejects POST /api/events without hook token (401)', async () => {
+    const res = await fetch(`${BASE}/api/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: 'sec-test',
+        agent_id: 'main',
+        event_type: 'pre_tool_use',
+        tool_name: 'Read',
+      }),
+    });
+    expect(res.status).toBe(401);
   });
 });
 

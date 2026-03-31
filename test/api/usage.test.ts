@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch, hookFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
@@ -11,16 +11,17 @@ const PORT = 14286;
 const BASE = `http://localhost:${PORT}`;
 
 beforeAll(async () => {
-  const server = createServer(PORT);
+  const server = createServer(PORT, true);
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
   const cookie = await authenticate(BASE, server.accessCode);
   f = authedFetch(cookie);
+  const hf = hookFetch(server.hookToken);
 
-  // Seed some events
+  // Seed some events (requires hook token)
   for (let i = 0; i < 5; i++) {
-    await fetch(`${BASE}/api/events`, {
+    await hf(`${BASE}/api/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

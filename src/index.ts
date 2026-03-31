@@ -2,10 +2,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { createServer } from './server';
 
 const VERSION = '0.1.0';
+const DATA_DIR = path.join(os.homedir(), '.claude-mission-control');
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -274,7 +276,7 @@ function openBrowser(url: string): void {
   });
 }
 
-function printBanner(port: number, accessCode: string): void {
+function printBanner(port: number, accessCode: string, hookToken: string, localOnly: boolean): void {
   // Get local network IP for sharing
   let localIp = 'unknown';
   try {
@@ -297,22 +299,27 @@ function printBanner(port: number, accessCode: string): void {
   console.log('  \x1b[2m{ SENTINEL }\x1b[0m  \x1b[1mMISSION CONTROL\x1b[0m v' + VERSION);
   console.log('  \x1b[2m─────────────────────────────────────────\x1b[0m');
   console.log('');
-  console.log('  \x1b[2mLocal:\x1b[0m     ' + localUrl);
-  console.log('  \x1b[2mNetwork:\x1b[0m   ' + networkUrl);
+  console.log('  \x1b[2mLocal:\x1b[0m       ' + localUrl);
+  if (!localOnly) {
+    console.log('  \x1b[2mNetwork:\x1b[0m     ' + networkUrl);
+  } else {
+    console.log('  \x1b[2mNetwork:\x1b[0m     \x1b[2mdisabled (--local mode)\x1b[0m');
+  }
   console.log('');
   console.log('  \x1b[2mAccess Code:\x1b[0m  \x1b[1m\x1b[33m' + accessCode + '\x1b[0m');
   console.log('');
-  console.log('  \x1b[2mShare the network URL + access code');
-  console.log('  with anyone on the same WiFi.\x1b[0m');
-  console.log('');
+  if (!localOnly) {
+    console.log('  \x1b[2mShare the network URL + access code');
+    console.log('  with anyone on the same WiFi.\x1b[0m');
+  }
   console.log('  \x1b[2m─────────────────────────────────────────\x1b[0m');
   console.log('  Hooks: Listening for Claude Code events');
   console.log('  Press \x1b[1mCtrl+C\x1b[0m to stop.');
   console.log('');
 }
 
-function startServer(port: number, shouldOpen: boolean): void {
-  const { start, stop, accessCode } = createServer(port);
+function startServer(port: number, shouldOpen: boolean, localOnly: boolean): void {
+  const { start, stop, accessCode, hookToken } = createServer(port, localOnly);
 
   process.on('SIGINT', () => {
     console.log('\n  Shutting down...');
@@ -326,7 +333,11 @@ function startServer(port: number, shouldOpen: boolean): void {
   });
 
   start();
-  printBanner(port, accessCode);
+  printBanner(port, accessCode, hookToken, localOnly);
+
+  // Write hook token to a file the hook script can read
+  const tokenPath = path.join(DATA_DIR, 'hook-token');
+  fs.writeFileSync(tokenPath, hookToken, { mode: 0o600 });
 
   if (shouldOpen) {
     openBrowser(`http://localhost:${port}`);
@@ -338,6 +349,7 @@ function startServer(port: number, shouldOpen: boolean): void {
 // ---------------------------------------------------------------------------
 
 const { command, port, open } = parseArgs(process.argv);
+const localOnly = process.argv.includes('--local');
 
 switch (command) {
   case 'install':
@@ -347,6 +359,6 @@ switch (command) {
     uninstallHooks();
     break;
   case 'start':
-    startServer(port, open);
+    startServer(port, open, localOnly);
     break;
 }

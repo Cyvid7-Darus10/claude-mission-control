@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch, hookFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
@@ -7,6 +7,7 @@ const { createServer } = await import('../../src/server');
 
 let stop: () => void;
 let f: ReturnType<typeof authedFetch>;
+let hf: ReturnType<typeof hookFetch>;
 const PORT = 14280;
 const BASE = `http://localhost:${PORT}`;
 
@@ -17,6 +18,7 @@ beforeAll(async () => {
   await new Promise((resolve) => setTimeout(resolve, 500));
   const cookie = await authenticate(BASE, server.accessCode);
   f = authedFetch(cookie);
+  hf = hookFetch(server.hookToken);
 });
 
 afterAll(() => {
@@ -25,7 +27,7 @@ afterAll(() => {
 });
 
 async function post(path: string, body: unknown) {
-  return fetch(`${BASE}${path}`, {
+  return hf(`${BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -62,7 +64,7 @@ describe('POST /api/events', () => {
   });
 
   it('rejects invalid JSON', async () => {
-    const res = await fetch(`${BASE}/api/events`, {
+    const res = await hf(`${BASE}/api/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: 'not json{{{',

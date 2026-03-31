@@ -141,6 +141,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: code }),
+          credentials: 'same-origin',
         })
           .then(function(res) {
             if (res.ok) {

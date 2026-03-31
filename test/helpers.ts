@@ -47,12 +47,24 @@ export async function authenticate(base: string, accessCode: string): Promise<st
 }
 
 /**
- * Create an authenticated fetch wrapper.
+ * Create an authenticated fetch wrapper (session cookie).
  */
 export function authedFetch(cookie: string) {
   return function (url: string, opts?: RequestInit): Promise<Response> {
     const headers = new Headers(opts?.headers);
     headers.set('Cookie', cookie);
+    return fetch(url, { ...opts, headers });
+  };
+}
+
+/**
+ * Create a hook-authenticated fetch wrapper (Bearer token).
+ * Use this for POST /api/events and GET /api/instructions/:agentId.
+ */
+export function hookFetch(hookToken: string) {
+  return function (url: string, opts?: RequestInit): Promise<Response> {
+    const headers = new Headers(opts?.headers);
+    headers.set('Authorization', `Bearer ${hookToken}`);
     return fetch(url, { ...opts, headers });
   };
 }

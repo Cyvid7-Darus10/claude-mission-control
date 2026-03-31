@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
 
 const execFileAsync = promisify(execFile);
@@ -15,16 +17,39 @@ const PORT = 14283;
 const BASE = `http://localhost:${PORT}`;
 const HOOK_SCRIPT = path.resolve(__dirname, '../../src/hook/mission-control-hook.js');
 
+const MC_DIR = path.join(os.homedir(), '.claude-mission-control');
+const TOKEN_FILE = path.join(MC_DIR, 'hook-token');
+let previousToken: string | null = null;
+
 beforeAll(async () => {
-  const server = createServer(PORT);
+  const server = createServer(PORT, true);
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
   const cookie = await authenticate(BASE, server.accessCode);
   f = authedFetch(cookie);
+
+  // Save any existing token, then write the test server's hook token
+  try {
+    previousToken = fs.readFileSync(TOKEN_FILE, 'utf-8');
+  } catch {
+    previousToken = null;
+  }
+  fs.mkdirSync(MC_DIR, { recursive: true });
+  fs.writeFileSync(TOKEN_FILE, server.hookToken, 'utf-8');
 });
 
 afterAll(() => {
+  // Restore previous token file state
+  if (previousToken !== null) {
+    fs.writeFileSync(TOKEN_FILE, previousToken, 'utf-8');
+  } else {
+    try {
+      fs.unlinkSync(TOKEN_FILE);
+    } catch {
+      // best-effort
+    }
+  }
   stop();
   teardownTestDb(tmpDir);
 });

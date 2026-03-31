@@ -16,10 +16,22 @@
  */
 
 const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
 
 const MC_HOST = process.env.CLAUDE_MC_HOST || 'localhost';
 const MC_PORT = parseInt(process.env.CLAUDE_MC_PORT || '4280', 10);
 const TIMEOUT_MS = 2000;
+
+// Read hook token from file (written by server on startup)
+let HOOK_TOKEN = '';
+try {
+  const tokenPath = path.join(os.homedir(), '.claude-mission-control', 'hook-token');
+  HOOK_TOKEN = fs.readFileSync(tokenPath, 'utf-8').trim();
+} catch {
+  // Token file not found — server may not be running
+}
 
 /**
  * Make an HTTP request with a timeout. Returns parsed JSON or null on failure.
@@ -35,6 +47,11 @@ function httpRequest(method, path, body) {
         headers: {},
         timeout: TIMEOUT_MS,
       };
+
+      // Authenticate with hook token
+      if (HOOK_TOKEN) {
+        options.headers['Authorization'] = 'Bearer ' + HOOK_TOKEN;
+      }
 
       let payload = null;
       if (body != null) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch, hookFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
@@ -11,15 +11,16 @@ const PORT = 14285;
 const BASE = `http://localhost:${PORT}`;
 
 beforeAll(async () => {
-  const server = createServer(PORT);
+  const server = createServer(PORT, true);
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
   const cookie = await authenticate(BASE, server.accessCode);
   f = authedFetch(cookie);
+  const hf = hookFetch(server.hookToken);
 
-  // Register agents via hook endpoint (unauthed)
-  await fetch(`${BASE}/api/events`, {
+  // Register agents via hook endpoint (requires hook token)
+  await hf(`${BASE}/api/events`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
