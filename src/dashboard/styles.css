@@ -2354,10 +2354,12 @@ html, body {
 }
 
 /* ── Usage panel ─────────────────────────────────────── */
-#usage-panel {
-  flex: 0 0 auto;
-  max-height: 40%;
-  border-bottom: 1px solid var(--border);
+@media (min-width: 641px) {
+  #usage-panel {
+    flex: 0 0 auto;
+    max-height: 40%;
+    border-bottom: 1px solid var(--border);
+  }
 }
 
 /* Period selector tabs */
