@@ -1,6 +1,6 @@
-# DevFleet Architecture Diagrams
+# Mission Control Architecture Diagrams
 
-Visual documentation of the DevFleet platform architecture.
+Visual documentation of the Mission Control platform architecture.
 
 > **Tip:** Open the `.html` files locally in a browser for styled, interactive versions of these diagrams.
 
@@ -10,11 +10,11 @@ Visual documentation of the DevFleet platform architecture.
 
 ```mermaid
 graph TD
-    subgraph UI["Claude DevFleet UI :3101"]
+    subgraph UI["Claude Mission Control UI :3101"]
         Web["React 19 + Vite"]
     end
 
-    subgraph API["Claude DevFleet API :18801"]
+    subgraph API["Claude Mission Control API :18801"]
         FastAPI["FastAPI + SQLite"]
     end
 
@@ -57,7 +57,7 @@ graph TD
         SDK["Claude Code SDK Loop"]
     end
 
-    subgraph ContextMCP["devfleet-context -- Auto-Attached"]
+    subgraph ContextMCP["mission-control-context -- Auto-Attached"]
         ProjCtx["get_project_context"]
         MissionCtx["get_mission_context"]
         HistoryCtx["get_session_history"]
@@ -65,7 +65,7 @@ graph TD
         PastReports["read_past_reports"]
     end
 
-    subgraph ToolsMCP["devfleet-tools -- Auto-Attached"]
+    subgraph ToolsMCP["mission-control-tools -- Auto-Attached"]
         SubmitReport["submit_report"]
         CreateSub["create_sub_mission"]
         RequestReview["request_review"]
@@ -125,7 +125,7 @@ graph TD
 
 ---
 
-## DevFleet-as-MCP Server
+## Mission Control MCP Server
 
 External agents (Claude Code, Cursor, Windsurf) integrate via Streamable HTTP or SSE.
 
@@ -137,7 +137,7 @@ graph LR
         Wind["Windsurf"]
     end
 
-    subgraph DevFleetMCP["DevFleet MCP Server"]
+    subgraph DevFleetMCP["Mission Control MCP Server"]
         Plan["plan_project"]
         Create["create_project / create_mission"]
         Dispatch["dispatch_mission"]

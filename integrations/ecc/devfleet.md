@@ -1,13 +1,13 @@
 ---
-name: devfleet
-description: Orchestrate multi-agent coding tasks via Claude DevFleet
+name: mission-control
+description: Orchestrate multi-agent coding tasks via Claude Mission Control
 ---
 
-# DevFleet Orchestration
+# Mission Control Orchestration
 
-You have access to a running Claude DevFleet instance via MCP tools. DevFleet is a multi-agent coding platform that dispatches Claude Code agents to work on missions (coding tasks). Each agent runs in an isolated git worktree.
+You have access to a running Claude Mission Control instance via MCP tools. Mission Control is a multi-agent coding platform that dispatches Claude Code agents to work on missions (coding tasks). Each agent runs in an isolated git worktree.
 
-Use the `mcp__devfleet__*` tools to plan projects, dispatch agents, and monitor their work.
+Use the `mcp__mission_control__*` tools to plan projects, dispatch agents, and monitor their work.
 
 ## Core Workflow
 
@@ -16,7 +16,7 @@ Use the `mcp__devfleet__*` tools to plan projects, dispatch agents, and monitor 
 When the user describes something to build, use `plan_project` to break it into missions with dependencies:
 
 ```
-mcp__devfleet__plan_project(prompt="Build a REST API with auth, database, and tests")
+mcp__mission_control__plan_project(prompt="Build a REST API with auth, database, and tests")
 ```
 
 This returns a project ID and a list of missions with dependency chains. The first mission has no dependencies; subsequent missions auto-dispatch as their dependencies complete.
@@ -26,7 +26,7 @@ After planning, dispatch the first mission (the one with no `depends_on`) to kic
 ### 2. Dispatch a mission
 
 ```
-mcp__devfleet__dispatch_mission(mission_id="<id>")
+mcp__mission_control__dispatch_mission(mission_id="<id>")
 ```
 
 Optional overrides: `model` (e.g., "claude-sonnet-4-20250514"), `max_turns` (integer).
@@ -37,12 +37,12 @@ The agent runs asynchronously. You do not need to wait for it.
 
 Check a single mission:
 ```
-mcp__devfleet__get_mission_status(mission_id="<id>")
+mcp__mission_control__get_mission_status(mission_id="<id>")
 ```
 
-Get an overview of all DevFleet activity:
+Get an overview of all Mission Control activity:
 ```
-mcp__devfleet__get_dashboard()
+mcp__mission_control__get_dashboard()
 ```
 
 The dashboard shows running agents, agent slot usage, mission stats by status, and recent completions.
@@ -52,7 +52,7 @@ The dashboard shows running agents, agent slot usage, mission stats by status, a
 If you need the result before proceeding, block until the mission finishes:
 
 ```
-mcp__devfleet__wait_for_mission(mission_id="<id>", timeout_seconds=600)
+mcp__mission_control__wait_for_mission(mission_id="<id>", timeout_seconds=600)
 ```
 
 Returns the final status and report when done. Default timeout is 600 seconds (10 minutes), max is 1800 seconds (30 minutes).
@@ -62,7 +62,7 @@ Returns the final status and report when done. Default timeout is 600 seconds (1
 After a mission completes, read the structured agent report:
 
 ```
-mcp__devfleet__get_report(mission_id="<id>")
+mcp__mission_control__get_report(mission_id="<id>")
 ```
 
 Reports contain: `files_changed`, `what_done`, `what_open`, `what_tested`, `what_untested`, `next_steps`, `errors_encountered`.
@@ -72,7 +72,7 @@ Reports contain: `files_changed`, `what_done`, `what_open`, `what_tested`, `what
 For fine-grained control, create missions manually instead of using the planner:
 
 ```
-mcp__devfleet__create_mission(
+mcp__mission_control__create_mission(
   project_id="<id>",
   title="Add JWT authentication",
   prompt="Implement JWT auth middleware...",
@@ -88,16 +88,16 @@ Set `auto_dispatch=true` so the mission starts automatically when its `depends_o
 ### 7. Cancel a mission
 
 ```
-mcp__devfleet__cancel_mission(mission_id="<id>")
+mcp__mission_control__cancel_mission(mission_id="<id>")
 ```
 
 Stops the running agent and marks the mission as failed.
 
 ## Additional tools
 
-- `mcp__devfleet__list_projects()` -- List all projects.
-- `mcp__devfleet__list_missions(project_id="<id>")` -- List missions in a project. Optional `status` filter: `draft`, `running`, `completed`, `failed`.
-- `mcp__devfleet__create_project(name="My Project")` -- Create a project manually (plan_project does this automatically).
+- `mcp__mission_control__list_projects()` -- List all projects.
+- `mcp__mission_control__list_missions(project_id="<id>")` -- List missions in a project. Optional `status` filter: `draft`, `running`, `completed`, `failed`.
+- `mcp__mission_control__create_project(name="My Project")` -- Create a project manually (plan_project does this automatically).
 
 ## Patterns
 
@@ -126,5 +126,5 @@ Stops the running agent and marks the mission as failed.
 - Always confirm the plan with the user before dispatching missions, unless they said to go ahead.
 - When reporting status, include mission titles and IDs so the user can reference them.
 - If a mission fails, read its report to understand what went wrong before retrying.
-- DevFleet runs up to 3 agents concurrently by default. Check `get_dashboard` for slot availability before bulk dispatching.
+- Mission Control runs up to 3 agents concurrently by default. Check `get_dashboard` for slot availability before bulk dispatching.
 - Mission dependencies form a DAG. Do not create circular dependencies.

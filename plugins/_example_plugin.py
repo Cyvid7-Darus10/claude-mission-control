@@ -1,5 +1,5 @@
 """
-Example Claude DevFleet Plugin — rename to remove the underscore prefix to activate.
+Example Claude Mission Control Plugin — rename to remove the underscore prefix to activate.
 
 This shows how to:
 1. Add custom MCP tools (available to any connected MCP client)
@@ -8,7 +8,7 @@ This shows how to:
 To create your own plugin:
 1. Copy this file to plugins/my_plugin.py (no underscore prefix)
 2. Implement your register() function
-3. Restart DevFleet — your plugin loads automatically
+3. Restart Mission Control — your plugin loads automatically
 
 Plugins can import anything from the backend (db, models, etc.)
 and any pip-installed package.
@@ -16,10 +16,10 @@ and any pip-installed package.
 
 
 def register(registry):
-    """Called by Claude DevFleet at startup. Use registry to add tools and hooks."""
+    """Called by Claude Mission Control at startup. Use registry to add tools and hooks."""
 
     # ── Example: Custom MCP tool ──
-    # This tool becomes available to any MCP client connected to DevFleet
+    # This tool becomes available to any MCP client connected to Mission Control
 
     @registry.tool(
         name="hello_world",
@@ -33,7 +33,7 @@ def register(registry):
         },
     )
     async def hello_world(args: dict) -> dict:
-        return {"message": f"Hello from Claude DevFleet plugin, {args['name']}!"}
+        return {"message": f"Hello from Claude Mission Control plugin, {args['name']}!"}
 
     # ── Example: Post-completion hook ──
     # Runs after any mission completes successfully.

@@ -2,313 +2,128 @@
 
 # Claude Mission Control
 
-**Mission tracking, dependency scheduling, and dashboard for Claude Code agents.**
+**Real-time command center for Claude Code agents.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.11+-blue)](https://python.org)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Node.js-blue)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-purple)](https://modelcontextprotocol.io)
 
-Claude Code already dispatches agents and runs them in isolated worktrees. What it doesn't do is **remember missions across sessions**, **enforce dependency chains**, **schedule recurring tasks**, or **track costs**. That's what Mission Control adds.
-
-Improved fork of [claude-devfleet](https://github.com/LEC-AI/claude-devfleet).
+See what your Claude Code agents are doing. Assign missions. Watch them work. Step in when needed.
 
 </div>
 
 ---
 
-## What Claude Code Does vs What Mission Control Adds
+## The Problem
 
-| Capability | Claude Code (built-in) | Mission Control |
-|-----------|----------------------|-----------------|
-| Dispatch agents | Native `Agent` tool | -- |
-| Worktree isolation | `isolation: "worktree"` | -- |
-| Parallel execution | Multiple agent calls | -- |
-| Model routing | `model: "haiku"/"sonnet"/"opus"` | -- |
-| **Persistent mission tracking** | -- | Missions survive conversation restarts |
-| **Dependency DAG** | -- | "Don't start tests until API is done" |
-| **Scheduled agents** | -- | Cron jobs (nightly tests, daily reviews) |
-| **Cost tracking** | -- | Aggregated spend across all missions |
-| **Web dashboard** | -- | Visual overview of all projects and missions |
-| **Structured reports DB** | -- | Searchable history of what agents built |
-| **Cross-session resume** | -- | Pick up where any agent left off |
+You're running multiple Claude Code agents — maybe one building auth, another writing tests, a third reviewing a PR. But it's all happening in separate terminals. You lose track of what each agent is doing, which files they're touching, and whether they're stuck.
 
----
+## The Solution
 
-## Demo
-
-![Install Demo](images/install-demo.gif)
-
----
-
-## Quick Start
-
-```bash
-git clone https://github.com/Cyvid7-Darus10/claude-mission-control.git
-cd claude-mission-control
-./start.sh
-```
-
-- **Dashboard:** http://localhost:3100
-- **API:** http://localhost:18801
-- **API Docs:** http://localhost:18801/docs
-
-### Connect to Claude Code
-
-```bash
-claude mcp add mission-control --transport http http://localhost:18801/mcp
-```
-
-Then in Claude Code:
+Mission Control is a web dashboard that connects to Claude Code via hooks. Every tool call, file edit, and bash command is streamed to the dashboard in real-time. You see all your agents at a glance, assign them missions, track dependencies, and send instructions — like a command center.
 
 ```
-"Use mission-control to plan a project: build a REST API with auth and tests"
-```
-
----
-
-## How It Works
-
-```mermaid
-sequenceDiagram
-    participant U as You
-    participant C as Claude Code
-    participant MC as Mission Control
-    participant DB as SQLite
-
-    U->>C: "Build a REST API with auth and tests"
-    C->>MC: plan_project(prompt)
-    MC->>DB: Save project + missions with dependency DAG
-    MC-->>C: Project plan (M1 → M2 → M3)
-    C->>U: Here's the plan. Approve?
-    U->>C: Yes
-
-    Note over C: Claude Code dispatches agents natively
-
-    C->>MC: update_mission(M1, status: completed, report: {...})
-    MC->>DB: Save report, check dependency DAG
-    MC-->>C: M2 is now unblocked (depends_on M1 met)
-    C->>MC: update_mission(M2, status: completed, report: {...})
-    MC-->>C: M3 is now unblocked
-    C->>MC: get_report(M3)
-    MC-->>C: files_changed, what_done, next_steps
-    C-->>U: All done. Here's what was built.
-```
-
----
-
-## Architecture
-
-```mermaid
-graph TB
-    subgraph Clients["MCP Clients"]
-        CC["Claude Code"]
-        CU["Cursor"]
-        WS["Windsurf"]
-    end
-
-    subgraph MC["Mission Control (port 18801)"]
-        API["FastAPI + MCP Server"]
-        DB["SQLite"]
-        WATCH["Dependency Watcher"]
-        SCHED["Cron Scheduler"]
-        COST["Cost Tracker"]
-    end
-
-    subgraph Dashboard["Web Dashboard (port 3100)"]
-        UI["React UI"]
-    end
-
-    CC -->|MCP| API
-    CU -->|MCP| API
-    WS -->|MCP| API
-    API --> DB
-    WATCH -->|"check deps"| DB
-    SCHED -->|"cron triggers"| DB
-    COST -->|"aggregate"| DB
-    UI -->|HTTP| API
+┌──────────────────────────────────────────────────────────────────┐
+│  MISSION CONTROL                    3 agents ● 5 missions       │
+├──────────┬───────────────────────────────────────────────────────┤
+│          │  QUEUED        ACTIVE         DONE         FAILED     │
+│ AGENTS   │ ┌──────┐     ┌──────┐      ┌──────┐                  │
+│          │ │Auth  │────→│API   │      │Setup │                  │
+│ ● Alpha  │ │module│     │routes│      │done  │                  │
+│   auth.ts│ └──────┘     └──┬───┘      └──────┘                  │
+│          │ ┌──────┐        │                                     │
+│ ● Bravo  │ │Tests │←───────┘                                     │
+│   npm tst│ │suite │                                              │
+│          │ └──────┘                                              │
+│ ○ Charlie│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
+│   idle   │  TIMELINE                                             │
+│          │  12:34:02 ● Alpha  Edit src/auth.ts                   │
+│ ──────── │  12:34:01 ● Bravo  Bash npm test                     │
+│ + Send   │  12:33:58 ● Alpha  Read package.json                 │
+│ Message  │  12:33:50 ○ Charlie Read src/routes.ts                │
+└──────────┴───────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Features
 
-### Mission Tracking
-
 | Feature | Description |
 |---------|-------------|
-| **Persistent Missions** | Projects and missions saved to SQLite — survive conversation restarts |
-| **Structured Reports** | Agents report: files changed, what's done, what's open, next steps |
-| **Mission History** | Searchable history of all agent work across projects |
-| **Project Organization** | Group missions by project with tags and priorities |
-
-### Dependency Scheduling
-
-| Feature | Description |
-|---------|-------------|
-| **Dependency DAG** | Missions depend on other missions; watcher tracks when deps are met |
-| **Auto-Dispatch Signals** | Claude Code gets notified when blocked missions become unblocked |
-| **Cron Scheduler** | Recurring missions on a schedule (nightly tests, daily reviews) |
-| **Mission Events** | Full audit log: dependency_met, dispatched, completed, failed |
-
-### Dashboard
-
-| Feature | Description |
-|---------|-------------|
-| **Project Overview** | All projects, missions, and their status at a glance |
-| **Cost Tracking** | Aggregated token usage and spend across all missions |
-| **Live Status** | Real-time mission status updates |
-| **Report Viewer** | Browse structured reports from all completed missions |
-
-### MCP Tools
-
-Any MCP-compatible client can use these tools:
-
-| Tool | Description |
-|------|-------------|
-| `plan_project` | Natural language → project with chained missions |
-| `create_project` | Create a project manually |
-| `create_mission` | Add a mission with dependencies and auto-dispatch |
-| `update_mission_status` | Update status (draft/ready/running/completed/failed) + cost/tokens |
-| `submit_report` | Submit structured report (files changed, what's done, next steps) |
-| `get_mission_status` | Check progress of any mission |
-| `get_unblocked_missions` | Get missions whose deps are satisfied and ready to start |
-| `get_report` | Read structured report |
-| `get_cost_summary` | Aggregated cost/token data across projects |
-| `get_dashboard` | Overview: projects, mission stats, costs |
-| `list_projects` | Browse all projects |
-| `list_missions` | List missions, filter by status |
+| **Live Agent Monitor** | See all active agents, what they're working on, files they're touching — in real-time |
+| **Kanban Mission Board** | Create missions, drag between Queued → Active → Done columns |
+| **Dependency Tracking** | Visual arrows: "Tests wait on API" — auto-unblock when deps complete |
+| **Send Instructions** | Push messages to running agents from the dashboard |
+| **Activity Timeline** | Color-coded log of every tool call, file edit, bash command per agent |
+| **Stuck Agent Alerts** | Detect when an agent hasn't made progress in 2+ minutes |
+| **Anti-Pattern Detection** | Spot correction spirals, repeated prompts, agents going in circles |
+| **Cost Tracking** | Per-mission cost breakdown with model info |
 
 ---
 
-## Setup
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed
-
-### Option A: One-Command (Recommended)
+## Quick Start
 
 ```bash
-git clone https://github.com/Cyvid7-Darus10/claude-mission-control.git
-cd claude-mission-control
-./start.sh
+npx claude-mission-control install   # Add hooks to Claude Code
+npx claude-mission-control           # Start dashboard on port 4280
 ```
 
-### Option B: Manual
-
-```bash
-git clone https://github.com/Cyvid7-Darus10/claude-mission-control.git
-cd claude-mission-control
-
-# Backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r backend/requirements.txt
-cd backend && uvicorn app:app --host 0.0.0.0 --port 18801 --reload
-
-# Frontend (separate terminal)
-cd frontend && npm install && npm run dev
-```
-
-### Option C: Docker
-
-```bash
-docker compose up -d
-# Dashboard: http://localhost:3101
-# API: http://localhost:18801
-```
-
-### Connect Your Editor
-
-<details>
-<summary><b>Claude Code</b></summary>
-
-```bash
-claude mcp add mission-control --transport http http://localhost:18801/mcp
-```
-
-</details>
-
-<details>
-<summary><b>Cursor</b></summary>
-
-Add to `.cursor/mcp.json`:
-```json
-{
-  "mcpServers": {
-    "mission-control": {
-      "type": "http",
-      "url": "http://localhost:18801/mcp"
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>Windsurf / Cline</b></summary>
-
-Add to your MCP settings:
-```json
-{
-  "mission-control": {
-    "type": "http",
-    "url": "http://localhost:18801/mcp"
-  }
-}
-```
-
-</details>
+Open http://localhost:4280 — your agents appear automatically when they start working.
 
 ---
 
-## Configuration
+## How It Works
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEVFLEET_DB` | `data/devfleet.db` | SQLite database path |
-| `DEVFLEET_WATCHER_INTERVAL` | `5` | Dependency watcher poll interval (seconds) |
-| `DEVFLEET_SCHEDULER_INTERVAL` | `60` | Cron scheduler check interval (seconds) |
-| `DEVFLEET_PROJECTS_DIR` | `projects/` | Base directory for planner-created projects |
+1. **Hooks** — Claude Code hooks (PreToolUse, PostToolUse, Stop) fire on every action
+2. **Events** — Hook POSTs event data to Mission Control server
+3. **Dashboard** — Server broadcasts to browser via WebSocket
+4. **Instructions** — Dashboard queues a message → hook picks it up on next PreToolUse → writes to stderr → agent sees it
 
----
+```mermaid
+sequenceDiagram
+    participant A as Claude Code Agent
+    participant H as Hook Script
+    participant S as Mission Control Server
+    participant D as Dashboard (Browser)
 
-## Plugins
+    A->>A: Edit src/auth.ts
+    A->>H: PreToolUse hook fires
+    H->>S: POST /api/events {tool: "Edit", file: "src/auth.ts"}
+    S->>D: WebSocket broadcast
+    D->>D: Update timeline + agent panel
 
-Extend Mission Control with custom hooks. Drop a Python file into `plugins/`:
-
-```python
-# plugins/slack_notify.py
-def register(registry):
-    @registry.hook("post_complete")
-    async def notify_slack(mission, report):
-        import httpx
-        await httpx.AsyncClient().post(WEBHOOK, json={
-            "text": f"Mission '{mission['title']}' done! Files: {report['files_changed']}"
-        })
+    D->>S: POST /api/instructions {agent: "alpha", message: "Focus on JWT"}
+    Note over H: Next tool call...
+    A->>H: PreToolUse hook fires
+    H->>S: GET /api/instructions/alpha
+    S-->>H: {message: "Focus on JWT"}
+    H->>A: Write to stderr (agent sees the instruction)
 ```
 
-Hook events: `on_unblocked`, `post_complete`, `post_fail`, `pre_plan`, `post_plan`
+---
+
+## Tech Stack
+
+| Component | Choice | Why |
+|-----------|--------|-----|
+| Runtime | Node.js + TypeScript | Single language, `npx` installable |
+| HTTP | Node.js `http` (no Express) | Zero framework deps |
+| WebSocket | `ws` | Lightweight, battle-tested |
+| Database | `better-sqlite3` | Embedded, no server needed |
+| Dashboard | Vanilla HTML/CSS/JS | No build step, served directly |
+| Only 2 deps | `better-sqlite3` + `ws` | Minimal footprint |
 
 ---
 
-## Roadmap
+## Status
 
-- [x] Strip redundant agent dispatch engine (Claude Code handles this natively)
-- [ ] Add API authentication
-- [ ] Event-driven dependency watcher (replace polling)
-- [ ] Structured logging and observability
-- [ ] Test coverage
+**Under active development.** See [docs/PLAN.md](docs/PLAN.md) for the full implementation plan and [docs/RESEARCH.md](docs/RESEARCH.md) for competitive analysis.
 
 ---
 
 ## Credits
 
-- **[claude-devfleet](https://github.com/LEC-AI/claude-devfleet)** by LEC-AI — Original multi-agent orchestration platform. The foundation.
+- Inspired by [claude-devfleet](https://github.com/LEC-AI/claude-devfleet), [disler/observability](https://github.com/disler/claude-code-hooks-multi-agent-observability), [agent-flow](https://github.com/patoles/agent-flow), [MeisnerDan/mission-control](https://github.com/MeisnerDan/mission-control)
 
 ## License
 

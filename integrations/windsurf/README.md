@@ -1,10 +1,10 @@
-# DevFleet MCP Server for Windsurf
+# Mission Control MCP Server for Windsurf
 
-Use Claude DevFleet as a multi-agent backend from Windsurf. Dispatch coding agents, plan projects, and read mission reports through Windsurf's MCP integration.
+Use Claude Mission Control as a multi-agent backend from Windsurf. Dispatch coding agents, plan projects, and read mission reports through Windsurf's MCP integration.
 
 ## Prerequisites
 
-- Claude DevFleet API running (default: `http://localhost:18801`)
+- Claude Mission Control API running (default: `http://localhost:18801`)
 - Windsurf (by Codeium) with MCP support enabled
 
 ## Setup
@@ -15,14 +15,14 @@ Use Claude DevFleet as a multi-agent backend from Windsurf. Dispatch coding agen
 2. Search for **MCP** in the settings search bar.
 3. Click **Add Server** to configure a new MCP server.
 
-### Step 2: Add DevFleet
+### Step 2: Add Mission Control
 
 Add the following to your project's `.windsurf/mcp_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "serverUrl": "http://localhost:18801/mcp"
     }
@@ -37,7 +37,7 @@ Or to your global Windsurf config at `~/.codeium/windsurf/mcp_config.json` for a
 > ```json
 > {
 >   "mcpServers": {
->     "devfleet": {
+>     "mission-control": {
 >       "type": "http",
 >       "url": "http://localhost:18801/mcp"
 >     }
@@ -47,10 +47,10 @@ Or to your global Windsurf config at `~/.codeium/windsurf/mcp_config.json` for a
 
 ### Step 3: Verify
 
-After adding the server, Windsurf should show the DevFleet tools in its MCP tool list. You can verify by asking Windsurf's AI:
+After adding the server, Windsurf should show the Mission Control tools in its MCP tool list. You can verify by asking Windsurf's AI:
 
 ```
-List the available DevFleet tools
+List the available Mission Control tools
 ```
 
 ## Available Tools
@@ -74,30 +74,30 @@ List the available DevFleet tools
 ### Plan and dispatch
 
 ```
-Use DevFleet to plan a project: "Build a FastAPI microservice with PostgreSQL,
+Use Mission Control to plan a project: "Build a FastAPI microservice with PostgreSQL,
 JWT auth, and comprehensive tests". Then dispatch the first mission.
 ```
 
 ### Monitor progress
 
 ```
-Show me the DevFleet dashboard. What agents are running?
+Show me the Mission Control dashboard. What agents are running?
 ```
 
 ### Read results
 
 ```
-Get the report for DevFleet mission <paste-mission-id-here>
+Get the report for Mission Control mission <paste-mission-id-here>
 ```
 
 ## Docker / Remote Access
 
-If DevFleet runs in Docker or on a remote host, update the URL accordingly:
+If Mission Control runs in Docker or on a remote host, update the URL accordingly:
 
 ```json
 {
   "mcpServers": {
-    "devfleet": {
+    "mission-control": {
       "type": "http",
       "serverUrl": "http://<host>:<port>/mcp"
     }
@@ -109,13 +109,13 @@ The default Docker Compose setup exposes the API on port `18801`.
 
 ## Troubleshooting
 
-**Server not connecting**: Confirm the DevFleet API is reachable:
+**Server not connecting**: Confirm the Mission Control API is reachable:
 ```bash
 curl http://localhost:18801/api/dashboard
 ```
 
 **Tools not showing up**: Restart Windsurf after adding the MCP server. Check that `mcp_config.json` is valid JSON. Try toggling between `"serverUrl"` and `"url"` if your Windsurf version doesn't recognize one.
 
-**"Agent slots full"**: DevFleet defaults to 3 concurrent agents. Use `get_dashboard` to check slot usage. Wait for missions to finish or cancel one with `cancel_mission`.
+**"Agent slots full"**: Mission Control defaults to 3 concurrent agents. Use `get_dashboard` to check slot usage. Wait for missions to finish or cancel one with `cancel_mission`.
 
 **Config file not found**: Ensure the config file is in the correct location. For project-level config, create `.windsurf/mcp_config.json` in your project root. For global config, create `~/.codeium/windsurf/mcp_config.json`.

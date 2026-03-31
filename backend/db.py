@@ -1,7 +1,7 @@
 import aiosqlite
 import os
 
-DB_PATH = os.environ.get("DEVFLEET_DB", os.path.join(os.path.dirname(__file__), "..", "data", "devfleet.db"))
+DB_PATH = os.environ.get("MISSION_CONTROL_DB", os.path.join(os.path.dirname(__file__), "..", "data", "mission_control.db"))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (

@@ -20,9 +20,9 @@ from datetime import datetime, timezone
 
 from db import get_db
 
-log = logging.getLogger("devfleet.planner")
+log = logging.getLogger("mission_control.planner")
 
-PLANNER_PROMPT = """You are a DevFleet project planner. Given a high-level project description, break it down into a project and a sequence of well-scoped coding missions.
+PLANNER_PROMPT = """You are a Mission Control project planner. Given a high-level project description, break it down into a project and a sequence of well-scoped coding missions.
 
 ## User's Request
 {user_prompt}

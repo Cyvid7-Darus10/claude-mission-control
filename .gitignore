@@ -15,7 +15,7 @@ venv/
 .claude/
 .DS_Store
 
-.devfleet-worktrees/
+.mission-control-worktrees/
 
 # User-created projects (via planner)
 projects/
