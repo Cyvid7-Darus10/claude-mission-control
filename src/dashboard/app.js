@@ -274,11 +274,7 @@
   var $timelineFilter = document.getElementById('timeline-filter');
   var $commandInput = document.getElementById('command-input');
   var $commandTarget = document.getElementById('command-target');
-  var $newMissionBtn = document.getElementById('new-mission-btn');
-  var $missionInlineForm = document.getElementById('mission-inline-form');
-  var $missionTitleInput = document.getElementById('mission-title-input');
-  var $missionCreateBtn = document.getElementById('mission-create-btn');
-  var $missionCancelBtn = document.getElementById('mission-cancel-btn');
+  // Mission creation removed — missions are auto-created from agent activity
   var $kbdHelp = document.getElementById('kbd-help');
   var $securityBtn = document.getElementById('security-btn');
   var $securityCount = document.getElementById('security-count');
@@ -1566,43 +1562,6 @@
 
   // ── Inline mission creation ──────────────────────────────────────────────
 
-  function showMissionForm() {
-    $newMissionBtn.classList.add('hidden');
-    $missionInlineForm.classList.remove('hidden');
-    $missionTitleInput.value = '';
-    $missionTitleInput.focus();
-  }
-
-  function hideMissionForm() {
-    $missionInlineForm.classList.add('hidden');
-    $newMissionBtn.classList.remove('hidden');
-  }
-
-  function submitMission() {
-    var title = $missionTitleInput.value.trim();
-    if (!title) return;
-
-    hideMissionForm();
-
-    fetch('/api/missions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: title }),
-    })
-      .then(function (res) {
-        if (!res.ok) {
-          return res.json().then(function (body) { showToast('Error: ' + (body.error || 'Failed')); });
-        }
-        return res.json().then(function (mission) {
-          upsertMission(mission);
-          renderMissions();
-          updateHeaderStats();
-          showToast('Mission created: ' + title);
-        });
-      })
-      .catch(function () { showToast('Failed to create mission'); });
-  }
-
   // ── Instruction tracking ─────────────────────────────────────────────────
   // Show sent instructions with delivery status so user knows if agent received them.
 
@@ -1687,12 +1646,10 @@
     if (isInput) {
       if (e.key === 'Escape') {
         e.target.blur();
-        if (e.target === $missionTitleInput) hideMissionForm();
       }
       if (e.key === 'Enter') {
         e.preventDefault();
         if (e.target === $commandInput) sendInstruction();
-        if (e.target === $missionTitleInput) submitMission();
       }
       return;
     }
@@ -1716,10 +1673,6 @@
       case 'Enter':
         selectFocusedRow();
         break;
-      case 'n':
-        e.preventDefault();
-        showMissionForm();
-        break;
       case 'i':
         e.preventDefault();
         if (state.selectedAgentId) $commandInput.focus();
@@ -1734,7 +1687,6 @@
         $kbdHelp.classList.toggle('hidden');
         break;
       case 'Escape':
-        hideMissionForm();
         $kbdHelp.classList.add('hidden');
         if (state.timelineFilter) setTimelineFilter(null);
         break;
@@ -1762,10 +1714,6 @@
   $timelineFilter.addEventListener('click', function () {
     setTimelineFilter(null);
   });
-
-  $newMissionBtn.addEventListener('click', showMissionForm);
-  $missionCreateBtn.addEventListener('click', submitMission);
-  $missionCancelBtn.addEventListener('click', hideMissionForm);
 
   $kbdHelp.addEventListener('click', function (e) {
     if (e.target === $kbdHelp) $kbdHelp.classList.add('hidden');
