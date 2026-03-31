@@ -35,6 +35,12 @@ Improved fork of [claude-devfleet](https://github.com/LEC-AI/claude-devfleet).
 
 ---
 
+## Demo
+
+![Install Demo](images/install-demo.gif)
+
+---
+
 ## Quick Start
 
 ```bash
@@ -163,10 +169,12 @@ Any MCP-compatible client can use these tools:
 | `plan_project` | Natural language → project with chained missions |
 | `create_project` | Create a project manually |
 | `create_mission` | Add a mission with dependencies and auto-dispatch |
-| `update_mission` | Update mission status and attach reports |
+| `update_mission_status` | Update status (draft/ready/running/completed/failed) + cost/tokens |
+| `submit_report` | Submit structured report (files changed, what's done, next steps) |
 | `get_mission_status` | Check progress of any mission |
-| `get_next_missions` | Get missions that are unblocked and ready to start |
+| `get_unblocked_missions` | Get missions whose deps are satisfied and ready to start |
 | `get_report` | Read structured report |
+| `get_cost_summary` | Aggregated cost/token data across projects |
 | `get_dashboard` | Overview: projects, mission stats, costs |
 | `list_projects` | Browse all projects |
 | `list_missions` | List missions, filter by status |
@@ -263,7 +271,6 @@ Add to your MCP settings:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DEVFLEET_DB` | `data/devfleet.db` | SQLite database path |
-| `DEVFLEET_MAX_AGENTS` | `3` | Max concurrent agents |
 | `DEVFLEET_WATCHER_INTERVAL` | `5` | Dependency watcher poll interval (seconds) |
 | `DEVFLEET_SCHEDULER_INTERVAL` | `60` | Cron scheduler check interval (seconds) |
 | `DEVFLEET_PROJECTS_DIR` | `projects/` | Base directory for planner-created projects |
@@ -285,13 +292,13 @@ def register(registry):
         })
 ```
 
-Hook events: `pre_dispatch`, `post_complete`, `post_fail`, `pre_plan`, `post_plan`
+Hook events: `on_unblocked`, `post_complete`, `post_fail`, `pre_plan`, `post_plan`
 
 ---
 
 ## Roadmap
 
-- [ ] Strip redundant agent dispatch engine (Claude Code handles this natively)
+- [x] Strip redundant agent dispatch engine (Claude Code handles this natively)
 - [ ] Add API authentication
 - [ ] Event-driven dependency watcher (replace polling)
 - [ ] Structured logging and observability
