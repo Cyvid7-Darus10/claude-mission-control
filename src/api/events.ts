@@ -86,6 +86,9 @@ function autoMission(
 
     agentMissionCreated.add(compositeId);
 
+    // Cap title length
+    if (title.length > 100) title = title.slice(0, 97) + '...';
+
     const mission = engineCreateMission({
       id: crypto.randomUUID(),
       title,
