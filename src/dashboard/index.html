@@ -181,6 +181,13 @@
         <div class="security-top">
           <div class="radar-container">
             <svg class="radar" viewBox="0 0 200 200" width="160" height="160">
+              <defs>
+                <!-- Sweep cone gradient -->
+                <linearGradient id="sweep-grad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="var(--success)" stop-opacity="0.25"/>
+                  <stop offset="100%" stop-color="var(--success)" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
               <!-- Radar rings -->
               <circle cx="100" cy="100" r="90" class="radar-ring"/>
               <circle cx="100" cy="100" r="65" class="radar-ring"/>
@@ -189,8 +196,12 @@
               <!-- Crosshairs -->
               <line x1="100" y1="10" x2="100" y2="190" class="radar-cross"/>
               <line x1="10" y1="100" x2="190" y2="100" class="radar-cross"/>
+              <!-- Sweep glow cone (30-degree arc trailing the sweep) -->
+              <path d="M100,100 L100,10 A90,90 0 0,0 55,18 Z" class="radar-sweep-cone" fill="url(#sweep-grad)"/>
               <!-- Sweep beam -->
               <line x1="100" y1="100" x2="100" y2="10" class="radar-sweep"/>
+              <!-- Center pulse dot -->
+              <circle cx="100" cy="100" r="3" class="radar-center"/>
               <!-- Blips (populated by JS) -->
               <g id="radar-blips"></g>
             </svg>
@@ -221,7 +232,34 @@
   <!-- Keyboard help (toggle with ?) -->
   <div id="kbd-help" class="kbd-overlay hidden">
     <div class="kbd-content">
-      <div class="kbd-title">KEYBOARD SHORTCUTS</div>
+      <div class="kbd-title">MISSION CONTROL HELP</div>
+
+      <div class="help-section-title">Getting Started</div>
+      <div class="help-text">
+        <p>1. Start the server: <code>npx tsx src/index.ts</code></p>
+        <p>2. Install hooks: <code>npx tsx src/index.ts install</code></p>
+        <p>3. Run <code>claude</code> in any terminal &mdash; agents appear automatically</p>
+      </div>
+
+      <div class="help-section-title">Panels</div>
+      <div class="help-text">
+        <p><strong>Agents</strong> &mdash; Click an agent to filter timeline and send instructions. Shows live tool activity, diff stats (+/-), files touched, and session duration.</p>
+        <p><strong>Missions</strong> &mdash; Press <kbd>n</kbd> to create tasks. Assign to agents, set priority, add dependencies. Supports subtask progress tracking.</p>
+        <p><strong>Usage</strong> &mdash; Real API costs from Claude Code logs. Switch periods (24H/7D/30D/All). Shows token breakdown, cost by model, context window health for active sessions, and cache hit rate.</p>
+        <p><strong>Timeline</strong> &mdash; Click any event row to expand full tool input/output. Filter by agent by clicking an agent name.</p>
+      </div>
+
+      <div class="help-section-title">Alerts</div>
+      <div class="help-text">
+        <p><strong>STUCK</strong> &mdash; No activity for 2+ min. Check the agent's terminal.</p>
+        <p><strong>LOOP</strong> &mdash; Repeating the same tool calls. Agent may need redirection.</p>
+        <p><strong>SPIRAL</strong> &mdash; Editing the same file repeatedly. Send a clarifying instruction.</p>
+        <p><strong>ERRORS</strong> &mdash; 5+ failures. Review the timeline for error details.</p>
+        <p><strong>MARATHON</strong> &mdash; Running 30+ min. Consider compacting context.</p>
+        <p>Enable browser notifications to get alerts even when this tab is in the background.</p>
+      </div>
+
+      <div class="help-section-title">Keyboard Shortcuts</div>
       <div class="kbd-grid">
         <kbd>Tab</kbd><span class="kbd-desc">Cycle panels</span>
         <kbd>j / k</kbd><span class="kbd-desc">Navigate rows</span>
@@ -229,10 +267,20 @@
         <kbd>n</kbd><span class="kbd-desc">New mission</span>
         <kbd>i</kbd><span class="kbd-desc">Send instruction to agent</span>
         <kbd>/</kbd><span class="kbd-desc">Clear timeline filter</span>
+        <kbd>s</kbd><span class="kbd-desc">Toggle security panel</span>
         <kbd>Esc</kbd><span class="kbd-desc">Cancel / close</span>
         <kbd>?</kbd><span class="kbd-desc">Toggle this help</span>
       </div>
-      <div class="kbd-footer">Click outside to close</div>
+
+      <div class="help-section-title">Tips</div>
+      <div class="help-text">
+        <p>&bull; Set <code>MC_COST_PER_TOOL_CALL=0.01</code> to adjust estimated costs when JSONL logs aren't available.</p>
+        <p>&bull; Data persists in <code>~/.claude-mission-control/data.db</code> &mdash; survives restarts.</p>
+        <p>&bull; Real costs are read from <code>~/.claude/projects/</code> JSONL session logs.</p>
+        <p>&bull; The secret scanner checks every tool output for leaked API keys, tokens, and private keys.</p>
+      </div>
+
+      <div class="kbd-footer">Press <kbd>?</kbd> or click outside to close</div>
     </div>
   </div>
 

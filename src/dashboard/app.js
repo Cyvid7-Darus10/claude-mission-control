@@ -436,19 +436,28 @@
 
   // ── WebSocket ─────────────────────────────────────────────────────────────
 
+  var wsFailCount = 0;
+
   function connectWebSocket() {
     var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(protocol + '//' + location.host);
 
     ws.onopen = function () {
       state.connected = true;
+      wsFailCount = 0;
       renderConnectionStatus();
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     };
 
-    ws.onclose = function () {
+    ws.onclose = function (e) {
       state.connected = false;
       renderConnectionStatus();
+      // Code 1008 = policy violation (auth rejected), or repeated failures = likely unauthorized
+      wsFailCount++;
+      if (e.code === 1008 || wsFailCount >= 3) {
+        window.location.href = '/login';
+        return;
+      }
       scheduleReconnect();
     };
 
@@ -1573,6 +1582,14 @@
   $kbdHelp.addEventListener('click', function (e) {
     if (e.target === $kbdHelp) $kbdHelp.classList.add('hidden');
   });
+
+  // ? HELP button click handler
+  var $kbdHint = document.querySelector('.kbd-hint');
+  if ($kbdHint) {
+    $kbdHint.addEventListener('click', function () {
+      $kbdHelp.classList.toggle('hidden');
+    });
+  }
 
   // ── Mobile tab navigation ─────────────────────────────────────────────────
 

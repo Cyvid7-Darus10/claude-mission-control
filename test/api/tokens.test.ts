@@ -11,7 +11,7 @@ const PORT = 14287;
 const BASE = `http://localhost:${PORT}`;
 
 beforeAll(async () => {
-  const server = createServer(PORT);
+  const server = createServer(PORT, true);
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));

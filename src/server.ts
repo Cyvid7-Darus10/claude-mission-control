@@ -127,11 +127,31 @@ function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse, por
 // Server factory
 // ---------------------------------------------------------------------------
 
-export function createServer(port: number = 4280): { start: () => void; stop: () => void; accessCode: string } {
-  // Generate access code and session token
-  const accessCode = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit code
-  const sessionToken = crypto.randomBytes(32).toString('hex');
+export function createServer(port: number = 4280, bindLocal: boolean = false): { start: () => void; stop: () => void; accessCode: string; hookToken: string } {
+  // C2 fix: Use CSPRNG for access code
+  const accessCode = String(crypto.randomInt(100_000, 1_000_000));
+  // H1/H2 fix: Shared secret for hook endpoints
+  const hookToken = crypto.randomBytes(24).toString('hex');
   const validSessions = new Set<string>();
+
+  // C1 fix: Rate limiting on auth endpoint (per IP)
+  const authAttempts = new Map<string, { count: number; resetAt: number }>();
+  const AUTH_MAX_ATTEMPTS = 5;
+  const AUTH_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+  function checkAuthRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = authAttempts.get(ip);
+    if (!entry || now > entry.resetAt) {
+      authAttempts.set(ip, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+      return true;
+    }
+    entry.count++;
+    return entry.count <= AUTH_MAX_ATTEMPTS;
+  }
+
+  // L1 fix: Cap concurrent sessions
+  const MAX_SESSIONS = 20;
 
   function parseCookies(req: http.IncomingMessage): Record<string, string> {
     const cookies: Record<string, string> = {};
@@ -149,11 +169,35 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
     return token ? validSessions.has(token) : false;
   }
 
+  // H1/H2 fix: Validate hook token (constant-time comparison)
+  function isHookAuthenticated(req: http.IncomingMessage): boolean {
+    const auth = req.headers.authorization ?? '';
+    const provided = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (provided.length !== hookToken.length) return false;
+    // Constant-time comparison to prevent timing attacks
+    let mismatch = 0;
+    for (let i = 0; i < hookToken.length; i++) {
+      mismatch |= provided.charCodeAt(i) ^ hookToken.charCodeAt(i);
+    }
+    return mismatch === 0;
+  }
+
   function setSessionCookie(res: http.ServerResponse, token: string): void {
-    res.setHeader('Set-Cookie', `mc_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`);
+    res.setHeader('Set-Cookie', `mc_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
+  }
+
+  // H3 fix: Security headers on every response
+  function setSecurityHeaders(res: http.ServerResponse): void {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' ws: wss:; img-src 'self' data:");
   }
 
   const server = http.createServer(async (req, res) => {
+    // H3: Apply security headers to all responses
+    setSecurityHeaders(res);
+
     // Validate origin before processing any request
     if (!setCorsHeaders(req, res, port)) return;
 
@@ -170,28 +214,57 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
     try {
       // ── Auth routes (no auth required) ──
       if (method === 'POST' && url === '/api/auth') {
+        const clientIp = req.socket.remoteAddress ?? 'unknown';
+
+        // C1 fix: Rate limit auth attempts
+        if (!checkAuthRateLimit(clientIp)) {
+          emitSecurityEvent(1, 'AUTH', 'critical', 'Auth rate limit exceeded — IP locked out', clientIp);
+          sendJson(res, 429, { error: 'Too many attempts. Try again in 15 minutes.' });
+          return;
+        }
+
         const { parseBody } = await import('./api/utils');
         const body = await parseBody(req);
         const code = typeof body.code === 'string' ? body.code.trim() : '';
-        if (code === accessCode) {
+
+        // Constant-time comparison for access code
+        const codeMatch = code.length === accessCode.length &&
+          crypto.timingSafeEqual(Buffer.from(code), Buffer.from(accessCode));
+
+        if (codeMatch) {
           const token = crypto.randomBytes(32).toString('hex');
+          // L1 fix: Evict oldest session if at capacity
+          if (validSessions.size >= MAX_SESSIONS) {
+            const oldest = validSessions.values().next().value;
+            if (oldest) validSessions.delete(oldest);
+          }
           validSessions.add(token);
           setSessionCookie(res, token);
           sendJson(res, 200, { ok: true });
         } else {
-          emitSecurityEvent(1, 'AUTH', 'warn', 'Invalid access code attempt', req.socket.remoteAddress ?? 'unknown');
+          emitSecurityEvent(1, 'AUTH', 'warn', 'Invalid access code attempt', clientIp);
           sendJson(res, 401, { error: 'Invalid access code' });
         }
         return;
       }
 
-      // ── Hook endpoints: no auth (hooks don't have cookies) ──
+      // ── Hook endpoints: authenticated by hook token, not cookies ──
       if (url.startsWith('/api/events') && method === 'POST') {
+        if (!isHookAuthenticated(req)) {
+          emitSecurityEvent(2, 'HOOK AUTH', 'critical', 'Rejected unauthenticated event POST', req.socket.remoteAddress ?? 'unknown');
+          sendJson(res, 401, { error: 'Invalid hook token' });
+          return;
+        }
         await handleEvents(req, res);
         return;
       }
       // Hook fetches pending instructions via GET during PreToolUse
       if (url.startsWith('/api/instructions/') && method === 'GET') {
+        if (!isHookAuthenticated(req)) {
+          emitSecurityEvent(2, 'HOOK AUTH', 'warn', 'Rejected unauthenticated instruction poll', req.socket.remoteAddress ?? 'unknown');
+          sendJson(res, 401, { error: 'Invalid hook token' });
+          return;
+        }
         await handleInstructions(req, res);
         return;
       }
@@ -393,8 +466,8 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
 
   return {
     start(): void {
-      server.listen(port, '0.0.0.0', () => {
-        // Start the agent status sweep (active → idle → disconnected)
+      const host = bindLocal ? '127.0.0.1' : '0.0.0.0';
+      server.listen(port, host, () => {
         agentTracker.start();
       });
     },
@@ -405,5 +478,6 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
       server.close();
     },
     accessCode,
+    hookToken,
   };
 }

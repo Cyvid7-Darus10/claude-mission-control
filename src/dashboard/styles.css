@@ -1104,18 +1104,42 @@ html, body {
   stroke-width: 0.5;
 }
 
+.radar-ring:first-of-type {
+  stroke: var(--border-bright);
+  stroke-width: 0.8;
+}
+
 .radar-cross {
   stroke: var(--border);
   stroke-width: 0.3;
   stroke-dasharray: 2 4;
 }
 
+/* Sweep line with glow */
 .radar-sweep {
-  stroke: var(--text-secondary);
+  stroke: var(--success);
   stroke-width: 1.5;
-  opacity: 0.5;
+  opacity: 0.7;
   transform-origin: 100px 100px;
   animation: radar-spin 4s linear infinite;
+  filter: drop-shadow(0 0 4px var(--success));
+}
+
+/* Sweep glow trail — a wider, fading arc behind the sweep */
+.radar-sweep-trail {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 0;
+  opacity: 0;
+  transform-origin: 100px 100px;
+  animation: radar-spin 4s linear infinite;
+}
+
+/* Gradient sweep cone */
+.radar-sweep-cone {
+  transform-origin: 100px 100px;
+  animation: radar-spin 4s linear infinite;
+  opacity: 0.12;
 }
 
 @keyframes radar-spin {
@@ -1123,36 +1147,87 @@ html, body {
   to { transform: rotate(360deg); }
 }
 
-/* Radar blips */
+/* Center dot — pulsing */
+.radar-center {
+  fill: var(--success);
+  opacity: 0.8;
+  animation: radar-center-pulse 2s ease-in-out infinite;
+}
+
+@keyframes radar-center-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.3; }
+}
+
+/* Radar blips — appear on security events */
 .radar-blip {
   fill: var(--success);
   opacity: 0;
-  animation: blip-fade 4s ease-out infinite;
+  animation: blip-appear 4s ease-out forwards;
+}
+
+.radar-blip.info {
+  fill: var(--info);
 }
 
 .radar-blip.warn {
   fill: var(--warning);
+  animation: blip-pulse-warn 4s ease-out forwards;
 }
 
 .radar-blip.critical {
   fill: var(--danger);
-  animation: blip-critical 1.5s ease-out infinite;
+  animation: blip-pulse-critical 6s ease-out forwards;
+  filter: drop-shadow(0 0 3px var(--danger));
 }
 
-@keyframes blip-fade {
-  0% { opacity: 0.9; r: 3; }
+/* Blip ring — expands outward from blip position */
+.radar-blip-ring {
+  fill: none;
+  stroke-width: 1;
+  opacity: 0;
+}
+
+.radar-blip-ring.info {
+  stroke: var(--info);
+  animation: blip-ring-expand 2s ease-out forwards;
+}
+
+.radar-blip-ring.warn {
+  stroke: var(--warning);
+  animation: blip-ring-expand 2s ease-out forwards;
+}
+
+.radar-blip-ring.critical {
+  stroke: var(--danger);
+  animation: blip-ring-expand 2.5s ease-out forwards;
+}
+
+@keyframes blip-appear {
+  0% { opacity: 0.9; r: 4; }
+  20% { opacity: 1; r: 3; }
   100% { opacity: 0; r: 1; }
 }
 
-@keyframes blip-critical {
-  0% { opacity: 1; r: 4; }
-  50% { opacity: 0.3; r: 2; }
-  100% { opacity: 1; r: 4; }
+@keyframes blip-pulse-warn {
+  0% { opacity: 1; r: 5; }
+  15% { opacity: 0.8; r: 3; }
+  30% { opacity: 1; r: 4; }
+  100% { opacity: 0; r: 1; }
 }
 
-/* Radar glow trail behind sweep */
-.radar svg::after {
-  content: '';
+@keyframes blip-pulse-critical {
+  0% { opacity: 1; r: 6; }
+  10% { opacity: 0.5; r: 3; }
+  20% { opacity: 1; r: 5; }
+  40% { opacity: 0.5; r: 3; }
+  60% { opacity: 1; r: 4; }
+  100% { opacity: 0; r: 1; }
+}
+
+@keyframes blip-ring-expand {
+  0% { opacity: 0.6; r: 4; }
+  100% { opacity: 0; r: 20; }
 }
 
 /* ── 7-layer defense panel ────────────────────────────── */
@@ -1341,7 +1416,9 @@ html, body {
   border: 1px solid var(--border-bright);
   padding: 20px 24px;
   min-width: 340px;
-  max-width: 90vw;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
@@ -1387,6 +1464,62 @@ html, body {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   text-align: center;
+}
+
+.kbd-footer kbd {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-bright);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+}
+
+/* Help sections */
+.help-section-title {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 14px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.help-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.help-text p {
+  margin-bottom: 4px;
+}
+
+.help-text strong {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.help-text code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-bright);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+}
+
+.help-text kbd {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-bright);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  padding: 0 3px;
 }
 
 /* ── Toast notifications ──────────────────────────────── */

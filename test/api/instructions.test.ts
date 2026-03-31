@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb, authenticate, authedFetch } from '../helpers';
+import { setupTestDb, teardownTestDb, authenticate, authedFetch, hookFetch } from '../helpers';
 
 const tmpDir = setupTestDb();
 
@@ -7,18 +7,20 @@ const { createServer } = await import('../../src/server');
 
 let stop: () => void;
 let f: ReturnType<typeof authedFetch>;
+let hf: ReturnType<typeof hookFetch>;
 const PORT = 14282;
 const BASE = `http://localhost:${PORT}`;
 
 beforeAll(async () => {
-  const server = createServer(PORT);
+  const server = createServer(PORT, true);
   stop = server.stop;
   server.start();
   await new Promise((resolve) => setTimeout(resolve, 500));
   const cookie = await authenticate(BASE, server.accessCode);
   f = authedFetch(cookie);
-  // Register an agent so instructions have a target (POST /api/events is unauthed)
-  await fetch(`${BASE}/api/events`, {
+  hf = hookFetch(server.hookToken);
+  // Register an agent so instructions have a target (POST /api/events requires hook token)
+  await hf(`${BASE}/api/events`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -103,19 +105,19 @@ describe('GET /api/instructions/:agentId', () => {
     });
 
     // Fetch pending
-    const res = await f(`${BASE}/api/instructions/inst-sess%3Amain`);
+    const res = await hf(`${BASE}/api/instructions/inst-sess%3Amain`);
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.length).toBeGreaterThanOrEqual(2);
 
     // Fetching again should return empty (already delivered)
-    const res2 = await f(`${BASE}/api/instructions/inst-sess%3Amain`);
+    const res2 = await hf(`${BASE}/api/instructions/inst-sess%3Amain`);
     const data2 = await res2.json();
     expect(data2.length).toBe(0);
   });
 
   it('returns empty for unknown agent', async () => {
-    const res = await f(`${BASE}/api/instructions/unknown-agent`);
+    const res = await hf(`${BASE}/api/instructions/unknown-agent`);
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.length).toBe(0);
