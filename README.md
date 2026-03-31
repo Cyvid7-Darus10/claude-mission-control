@@ -2,34 +2,49 @@
 
 # Claude Mission Control
 
-**Real-time command center for Claude Code agents.**
+**You're flying blind. Your agents don't have to be.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Node.js-blue)](https://nodejs.org)
 [![Node](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org)
 
-See what your Claude Code agents are doing. Assign missions. Watch them work. Step in when needed.
+One command. Every agent. Real-time.
 
-Palantir Gotham-inspired dark UI. Access-code protected. Mobile responsive. Only 2 dependencies.
-
-<img src="docs/tapes/setup.gif" alt="Mission Control setup demo" width="700">
+<img src="docs/screenshots/dashboard.png" alt="Mission Control Dashboard" width="900">
 
 </div>
 
 ---
 
-## The Problem
+## You've been here before
 
-You're running multiple Claude Code agents — maybe one building auth, another writing tests, a third reviewing a PR. But it's all happening in separate terminals. You lose track of what each agent is doing, which files they're touching, and whether they're stuck.
+You spin up 3 Claude Code agents. One's building auth. One's writing tests. One's refactoring the API. You Alt-Tab between terminals trying to keep track. Then you realize:
 
-## The Solution
+- Agent 1 has been **editing the same file for 5 minutes** in a loop
+- Agent 2 is **stuck** waiting for something — but you didn't notice for 10 minutes
+- Agent 3 just **overwrote Agent 1's work** because they touched the same file
+- You have **no idea** how much this is costing you
 
-Mission Control connects to Claude Code via hooks. Every tool call, file edit, and bash command is streamed to a web dashboard in real-time. You see all agents at a glance, assign missions, track dependencies, and send instructions.
+You're paying for AI agents but managing them like it's 1995 — staring at terminal windows and hoping for the best.
+
+## There's a better way
+
+**Mission Control** gives you a real-time command center for all your Claude Code agents. One browser tab. Every agent visible. Full control.
+
+| Without Mission Control | With Mission Control |
+|---|---|
+| Alt-Tab between 5 terminals | One dashboard shows everything |
+| "Is that agent still running?" | Live status: `active` / `idle` / `stuck` / `looping` |
+| No idea what agents are doing | See every tool call as it happens |
+| Can't coordinate between agents | Send instructions from the dashboard |
+| No cost visibility | Real token costs from API logs |
+| Problems discovered too late | Instant alerts: STUCK, LOOP, SPIRAL, ERRORS |
+| Desktop only | Phone companion — monitor from anywhere on WiFi |
 
 <div align="center">
-<img src="docs/screenshots/dashboard.png" alt="Mission Control Dashboard" width="900">
+<img src="docs/tapes/setup.gif" alt="Mission Control setup demo" width="700">
 <br>
-<sub>Live dashboard showing agents, missions, real token costs, context health, and timeline</sub>
+<sub>Install hooks, start server, and you're watching agents in under 30 seconds</sub>
 </div>
 
 ---
