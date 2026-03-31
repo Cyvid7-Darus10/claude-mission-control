@@ -146,11 +146,13 @@
   }
 
   // Tools that are normal to call repeatedly — don't flag as loops.
-  // Read/search: re-reading is normal. Agent/Task: spawning parallel work is normal.
+  // Only flag write tools (Edit, Write, Bash) that repeat with identical input.
   var LOOP_IGNORE_TOOLS = {
     'Read': true, 'Grep': true, 'Glob': true,
     'Agent': true, 'SendMessage': true,
-    'TaskCreate': true, 'TaskUpdate': true, 'TaskGet': true
+    'TaskCreate': true, 'TaskUpdate': true, 'TaskGet': true, 'TaskList': true,
+    'WebSearch': true, 'WebFetch': true,
+    'Skill': true, 'ToolSearch': true, 'LSP': true
   };
 
   function isAgentLooping(agentId) {
@@ -830,7 +832,10 @@
   }
 
   function renderAgents() {
-    $agentsBadge.textContent = state.agents.length;
+    // Show filtered count vs total
+    var activeCount = state.agents.filter(function (a) { return a.status === 'active'; }).length;
+    var totalCount = state.agents.length;
+    $agentsBadge.textContent = agentFilter === 'all' ? totalCount : activeCount + '/' + totalCount;
     clearElement($agentsList);
 
     if (state.agents.length === 0) {
@@ -841,12 +846,23 @@
     var tree = buildAgentTree();
     var flatIdx = 0;
     var sessionIds = Object.keys(tree.sessions);
+    var visibleCount = 0;
 
     sessionIds.forEach(function (sid) {
       var group = tree.sessions[sid];
       var main = group.main;
       var subs = group.subs;
       var isCollapsed = !!collapsedSessions[sid];
+
+      // Filter: skip entire session if no agents match
+      var mainMatches = main && matchesAgentFilter(main);
+      var matchingSubs = subs.filter(matchesAgentFilter);
+      if (!mainMatches && matchingSubs.length === 0) {
+        // Still increment flatIdx for hidden agents
+        if (main) flatIdx++;
+        flatIdx += subs.length;
+        return;
+      }
 
       var container = createEl('div', { className: 'agent-group' + (isCollapsed ? ' session-collapsed' : '') });
 
