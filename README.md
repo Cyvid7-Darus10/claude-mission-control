@@ -208,6 +208,50 @@ Each agent row shows rich, at-a-glance status:
 | **Subtask progress** | Missions support a `subtasks` JSON array of `{id, title, done}` items. Dashboard renders a green progress bar with X/Y count |
 | **Send instructions** | Select an agent, type a message → delivered via stderr on next tool call |
 
+### Sending Instructions to Agents
+
+You can send messages from the dashboard to any running Claude Code agent. The agent sees your message as a system warning and will follow it.
+
+**How to send:**
+
+1. **Click an agent** in the Agents panel (left side) — it highlights and the INSTRUCT panel shows `to: <agent-name>`
+2. **Type your message** in the `>_` input (or press `i` to focus it)
+3. **Press Enter** — the instruction is queued
+
+**How delivery works:**
+
+```
+You type: "Focus on writing tests, not refactoring"
+    │
+    ▼
+Stored in database (status: PENDING)
+    │
+    ▼
+Agent makes its next tool call (Edit, Bash, Read, etc.)
+    │
+    ▼
+PreToolUse hook fires → fetches pending instructions
+    │
+    ▼
+Hook writes to stderr: "[Mission Control] Focus on writing tests, not refactoring"
+    │
+    ▼
+Claude Code sees the warning and adjusts its behavior
+```
+
+**How to know it was received:**
+
+The INSTRUCT panel shows a **delivery log** under the input:
+
+| Status | Meaning |
+|--------|---------|
+| `○ pending...` | Instruction is queued, waiting for the agent's next tool call |
+| `✓ delivered` | The agent's hook picked it up — the agent has seen your message |
+
+You'll also see a **toast notification**: `✓ Agent received: "Focus on writing tests..."` when delivery happens.
+
+> **Note:** Instructions are delivered on the agent's **next tool call**, not instantly. If an agent is idle or stuck, the instruction waits until they resume working. This is a limitation of Claude Code's hook system — there's no way to push messages directly, only to inject them when hooks fire.
+
 ### Usage & Cost Tracking
 
 Mission Control reads Claude Code's JSONL session logs (`~/.claude/projects/`) to compute **real API costs** from actual token counts — not estimates. Inspired by [sniffly](https://github.com/chiphuyen/sniffly).
