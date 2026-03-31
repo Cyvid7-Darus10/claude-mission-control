@@ -456,6 +456,16 @@ html, body {
   text-overflow: ellipsis;
 }
 
+.agent-stats {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 1px;
+  margin-left: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Agent alerts (STUCK / LOOP) ──────────────────────── */
 .agent-alert {
   font-size: 9px;
@@ -479,6 +489,25 @@ html, body {
   color: var(--danger);
   border: 1px solid var(--danger-dim);
   background: rgba(248, 81, 73, 0.08);
+}
+
+.agent-alert.spiral {
+  color: var(--danger);
+  border: 1px solid var(--danger-dim);
+  background: rgba(248, 81, 73, 0.06);
+}
+
+.agent-alert.errors {
+  color: var(--danger);
+  border: 1px solid var(--danger-dim);
+  background: rgba(248, 81, 73, 0.06);
+}
+
+.agent-alert.marathon {
+  color: var(--info);
+  border: 1px solid var(--border-bright);
+  background: rgba(148, 163, 184, 0.06);
+  animation: none;
 }
 
 @keyframes blink-alert {
@@ -591,6 +620,32 @@ html, body {
   color: var(--warning);
 }
 
+.subtask-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.subtask-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  max-width: 120px;
+}
+
+.subtask-progress-fill {
+  height: 100%;
+  background: var(--success);
+  transition: width 0.3s ease;
+}
+
+.subtask-progress-label {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
 /* ── Timeline rows ────────────────────────────────────── */
 .timeline-row {
   display: flex;
@@ -659,6 +714,28 @@ html, body {
   background: var(--bg-hover);
 }
 
+/* Expandable timeline rows */
+.timeline-row.expanded {
+  flex-wrap: wrap;
+  background: var(--bg-panel-alt);
+}
+
+.timeline-expanded {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
 /* ── Command section ──────────────────────────────────── */
 #command-section .panel-header {
   min-height: 26px;
@@ -711,6 +788,46 @@ html, body {
 
 #command-input::placeholder {
   color: var(--text-muted);
+}
+
+/* ── Instruction log ─────────────────────────────────── */
+#instruction-log {
+  border-top: 1px solid var(--border);
+}
+
+.instr-log-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: var(--font-size-xs);
+  border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+
+.instr-status {
+  flex-shrink: 0;
+  width: 80px;
+}
+
+.instr-status.pending {
+  color: var(--warning);
+}
+
+.instr-status.delivered {
+  color: var(--success);
+}
+
+.instr-msg {
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instr-time {
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 /* ── Inline mission form ──────────────────────────────── */
@@ -1297,16 +1414,110 @@ html, body {
   transform: translateX(-50%) translateY(0);
 }
 
-/* ── Subagent indentation ─────────────────────────────── */
+/* ── Custom tooltip ───────────────────────────────────── */
+.custom-tooltip {
+  position: fixed;
+  z-index: 300;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border-bright);
+  padding: 8px 10px;
+  max-width: 280px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.custom-tooltip.hidden {
+  display: none;
+}
+
+.tooltip-row {
+  display: flex;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  min-width: 0;
+}
+
+.tooltip-label {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tooltip-value {
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ── Agent tree hierarchy ──────────────────────────────── */
+.agent-group {
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-group:last-child {
+  border-bottom: none;
+}
+
+/* Main agent: prominent, full-width */
+.agent-row.main-agent {
+  background: var(--bg-panel);
+}
+
+.agent-row.main-agent .agent-name {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+/* Session label fallback (when no main agent found) */
+.agent-group-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  letter-spacing: 0.5px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Subagent container: indented with left connector line */
+.agent-subs {
+  border-left: 1px solid var(--border-bright);
+  margin-left: 14px;
+}
+
 .agent-row.subagent {
-  padding-left: 20px;
-  border-left: 1px dashed var(--border-bright);
-  margin-left: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid rgba(37, 37, 40, 0.3);
+}
+
+.agent-row.subagent:last-child {
+  border-bottom: none;
 }
 
 .agent-row.subagent .agent-name {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.agent-row.subagent .agent-dot {
+  font-size: 7px;
+}
+
+.agent-row.subagent .agent-activity {
+  margin-left: 13px;
+}
+
+/* Sub-count badge on main agents */
+.agent-sub-count {
+  font-size: 9px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  line-height: 14px;
+  flex-shrink: 0;
 }
 
 /* ── Mobile tab bar ───────────────────────────────────── */
@@ -1319,10 +1530,19 @@ html, body {
 .mobile-tab-bar {
   display: flex;
   height: 44px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+
+.mobile-tab-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .mobile-tab {
-  flex: 1;
+  flex: 0 0 auto;
+  min-width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1337,7 +1557,8 @@ html, body {
   text-transform: uppercase;
   cursor: pointer;
   transition: all 80ms;
-  padding: 0 4px;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .mobile-tab:hover {
@@ -1724,6 +1945,68 @@ html, body {
 
 .session-cost.cache {
   color: var(--success);
+}
+
+/* Context window health bars */
+.ctx-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: var(--font-size-xs);
+}
+
+.ctx-label {
+  color: var(--text-secondary);
+  width: 60px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ctx-model {
+  color: var(--text-muted);
+  width: 56px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ctx-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  min-width: 40px;
+}
+
+.ctx-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.ctx-bar-fill.ctx-ok { background: var(--success); }
+.ctx-bar-fill.ctx-warning { background: var(--warning); }
+.ctx-bar-fill.ctx-danger { background: var(--danger); }
+
+.ctx-pct {
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.ctx-pct.ctx-ok { color: var(--success); }
+.ctx-pct.ctx-warning { color: var(--warning); }
+.ctx-pct.ctx-danger { color: var(--danger); }
+
+.ctx-tokens {
+  color: var(--text-muted);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .usage-bar-fill.daily {

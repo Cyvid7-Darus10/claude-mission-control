@@ -52,6 +52,12 @@
   var agentLastSeen = {};    // agentId -> timestamp
   var agentRecentTools = {}; // agentId -> [{ tool, input }, ...]
 
+  // ── File activity & diff tracking (from claude-squad / agent-farm) ────────
+
+  var agentFiles = {};      // agentId -> Set of file paths touched
+  var agentEditCount = {};  // agentId -> { added: N, removed: N }
+  var agentCurrentTool = {}; // agentId -> { tool, target } for live activity display
+
   function trackAgentActivity(evt) {
     var aid = evt.agent_id || 'unknown';
     agentLastSeen[aid] = Date.now();
@@ -59,10 +65,12 @@
     if (evt.tool_name) {
       if (!agentRecentTools[aid]) agentRecentTools[aid] = [];
       var inputKey = '';
+      var input;
       try {
-        var inp = typeof evt.tool_input === 'string' ? JSON.parse(evt.tool_input) : evt.tool_input;
-        inputKey = JSON.stringify(inp);
+        input = typeof evt.tool_input === 'string' ? JSON.parse(evt.tool_input) : evt.tool_input;
+        inputKey = JSON.stringify(input);
       } catch (e) {
+        input = null;
         inputKey = String(evt.tool_input);
       }
       agentRecentTools[aid].push({ tool: evt.tool_name, input: inputKey });
@@ -70,7 +78,48 @@
       if (agentRecentTools[aid].length > 10) {
         agentRecentTools[aid] = agentRecentTools[aid].slice(-10);
       }
+
+      // Track files touched by this agent
+      if (input && input.file_path) {
+        if (!agentFiles[aid]) agentFiles[aid] = {};
+        agentFiles[aid][input.file_path] = true;
+      }
+
+      // Track edit diffs (rough line count estimates)
+      if (evt.tool_name === 'Edit' && input) {
+        if (!agentEditCount[aid]) agentEditCount[aid] = { added: 0, removed: 0 };
+        var oldStr = input.old_string || '';
+        var newStr = input.new_string || '';
+        var oldLines = oldStr.split ? oldStr.split('\n').length : 0;
+        var newLines = newStr.split ? newStr.split('\n').length : 0;
+        agentEditCount[aid].removed += oldLines;
+        agentEditCount[aid].added += newLines;
+      } else if (evt.tool_name === 'Write' && input && input.content) {
+        if (!agentEditCount[aid]) agentEditCount[aid] = { added: 0, removed: 0 };
+        agentEditCount[aid].added += (input.content.split ? input.content.split('\n').length : 0);
+      }
+
+      // Track current tool for live display
+      var target = '';
+      if (input) {
+        if (input.file_path) target = input.file_path.split('/').pop();
+        else if (input.command) target = input.command.length > 30 ? input.command.slice(0, 27) + '...' : input.command;
+        else if (input.pattern) target = input.pattern;
+      }
+      agentCurrentTool[aid] = { tool: evt.tool_name, target: target };
     }
+  }
+
+  function getAgentFileCount(agentId) {
+    return agentFiles[agentId] ? Object.keys(agentFiles[agentId]).length : 0;
+  }
+
+  function getAgentDiffStats(agentId) {
+    return agentEditCount[agentId] || { added: 0, removed: 0 };
+  }
+
+  function getAgentCurrentActivity(agentId) {
+    return agentCurrentTool[agentId] || null;
   }
 
   function isAgentStuck(agentId) {
@@ -96,7 +145,85 @@
         break;
       }
     }
-    return count >= 3;
+    if (count >= 3) return true;
+    // Convergence score: total calls / unique tools > 3.0 (from builderz)
+    // Catches subtle loops like A->B->A->B that consecutive matching misses
+    if (recent.length >= 6) {
+      var uniqueTools = {};
+      for (var j = 0; j < recent.length; j++) {
+        uniqueTools[recent[j].tool] = true;
+      }
+      var uniqueCount = Object.keys(uniqueTools).length;
+      if (uniqueCount > 0 && recent.length / uniqueCount > 3.0) return true;
+    }
+    return false;
+  }
+
+  // ── Enhanced anti-pattern detection (inspired by agenttop) ───────────────
+
+  var MARATHON_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes continuous
+  var agentFirstSeen = {};      // agentId -> timestamp
+  var agentErrorCount = {};     // agentId -> count of recent errors
+  var agentCorrectionSpiral = {}; // agentId -> count of edit-then-re-edit same file
+
+  function trackAgentPatterns(evt) {
+    var aid = evt.agent_id || 'unknown';
+
+    // Track session start
+    if (!agentFirstSeen[aid]) agentFirstSeen[aid] = Date.now();
+
+    // Track errors (failed tool calls)
+    if (evt.event_type === 'PostToolUse') {
+      var output = evt.tool_output;
+      if (typeof output === 'string') {
+        try { output = JSON.parse(output); } catch (e) { /* ignore */ }
+      }
+      var isError = false;
+      if (typeof output === 'object' && output !== null) {
+        isError = output.error || output.stderr || output.is_error;
+      } else if (typeof output === 'string') {
+        isError = output.indexOf('Error') !== -1 || output.indexOf('error') !== -1;
+      }
+      if (isError) {
+        agentErrorCount[aid] = (agentErrorCount[aid] || 0) + 1;
+      }
+    }
+
+    // Track correction spirals (editing same file repeatedly)
+    if (evt.tool_name === 'Edit' || evt.tool_name === 'Write') {
+      var input = evt.tool_input;
+      if (typeof input === 'string') {
+        try { input = JSON.parse(input); } catch (e) { /* ignore */ }
+      }
+      var filePath = input && input.file_path;
+      if (filePath) {
+        var recent = agentRecentTools[aid] || [];
+        var editCount = 0;
+        for (var i = recent.length - 1; i >= Math.max(0, recent.length - 6); i--) {
+          if ((recent[i].tool === 'Edit' || recent[i].tool === 'Write') &&
+              recent[i].input.indexOf(filePath) !== -1) {
+            editCount++;
+          }
+        }
+        if (editCount >= 3) {
+          agentCorrectionSpiral[aid] = (agentCorrectionSpiral[aid] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  function isMarathonSession(agentId) {
+    var first = agentFirstSeen[agentId];
+    if (!first) return false;
+    return (Date.now() - first) > MARATHON_THRESHOLD_MS;
+  }
+
+  function hasErrorBurst(agentId) {
+    return (agentErrorCount[agentId] || 0) >= 5;
+  }
+
+  function hasCorrectionSpiral(agentId) {
+    return (agentCorrectionSpiral[agentId] || 0) >= 2;
   }
 
   // ── Status dot characters ────────────────────────────────────────────────
@@ -223,6 +350,87 @@
     }, 2500);
   }
 
+  // ── Custom tooltip ─────────────────────────────────────────────────────────
+
+  var $tooltip = createEl('div', { className: 'custom-tooltip hidden' });
+  document.body.appendChild($tooltip);
+  var tooltipHideTimer = null;
+
+  function showTooltip(target) {
+    var text = target.getAttribute('data-tooltip');
+    if (!text) return;
+
+    clearElement($tooltip);
+    text.split('\n').forEach(function (line) {
+      var parts = line.split(': ');
+      var row = createEl('div', { className: 'tooltip-row' });
+      if (parts.length >= 2) {
+        row.appendChild(createEl('span', { className: 'tooltip-label', textContent: parts[0] + ':' }));
+        row.appendChild(createEl('span', { className: 'tooltip-value', textContent: parts.slice(1).join(': ') }));
+      } else {
+        row.appendChild(createEl('span', { className: 'tooltip-value', textContent: line }));
+      }
+      $tooltip.appendChild(row);
+    });
+
+    // Position near the element
+    var rect = target.getBoundingClientRect();
+    var left = rect.right + 8;
+    var top = rect.top;
+
+    // If it would overflow right, show on left
+    if (left + 280 > window.innerWidth) {
+      left = rect.left - 288;
+      if (left < 0) left = 8;
+    }
+    // If it would overflow bottom
+    if (top + 160 > window.innerHeight) {
+      top = window.innerHeight - 168;
+    }
+
+    $tooltip.style.left = left + 'px';
+    $tooltip.style.top = top + 'px';
+    $tooltip.classList.remove('hidden');
+  }
+
+  function hideTooltip() {
+    $tooltip.classList.add('hidden');
+  }
+
+  // Show on mouseenter of elements with data-tooltip
+  document.addEventListener('mouseenter', function (e) {
+    var target = e.target.closest('[data-tooltip]');
+    if (target) {
+      if (tooltipHideTimer) { clearTimeout(tooltipHideTimer); tooltipHideTimer = null; }
+      showTooltip(target);
+    }
+  }, true);
+
+  document.addEventListener('mouseleave', function (e) {
+    var target = e.target.closest('[data-tooltip]');
+    if (target) {
+      tooltipHideTimer = setTimeout(hideTooltip, 150);
+    }
+  }, true);
+
+  // Keep tooltip visible when hovering the tooltip itself
+  $tooltip.addEventListener('mouseenter', function () {
+    if (tooltipHideTimer) { clearTimeout(tooltipHideTimer); tooltipHideTimer = null; }
+  });
+  $tooltip.addEventListener('mouseleave', function () {
+    tooltipHideTimer = setTimeout(hideTooltip, 150);
+  });
+
+  // Mobile: show on tap, hide on tap elsewhere
+  document.addEventListener('touchstart', function (e) {
+    var target = e.target.closest('[data-tooltip]');
+    if (target) {
+      showTooltip(target);
+    } else if (!e.target.closest('.custom-tooltip')) {
+      hideTooltip();
+    }
+  });
+
   // ── WebSocket ─────────────────────────────────────────────────────────────
 
   function connectWebSocket() {
@@ -266,7 +474,7 @@
       case 'events':
         state.events = msg.data || [];
         eventCount = state.events.length;
-        state.events.forEach(trackAgentActivity);
+        state.events.forEach(function (e) { trackAgentActivity(e); trackAgentPatterns(e); });
         renderTimeline();
         // Also fetch missions on initial connect
         fetchMissions();
@@ -282,6 +490,8 @@
         state.events.push(msg.data);
         eventCount++;
         trackAgentActivity(msg.data);
+        trackAgentPatterns(msg.data);
+        scanForSecrets(msg.data);
         renderTimelineAppend(msg.data);
         scheduleUsageRefresh();
         break;
@@ -296,7 +506,10 @@
         renderMissions();
         break;
       case 'instruction:new':
-        showToast('Instruction sent to ' + (msg.data.target_agent_id || 'agent'));
+        trackInstruction(msg.data);
+        break;
+      case 'instruction:delivered':
+        markInstructionDelivered(msg.data);
         break;
       case 'security:event':
         handleSecurityEvent(msg.data);
@@ -359,7 +572,126 @@
     $uptime.textContent = formatDuration(Date.now() - startTime);
   }
 
-  // ── Agents panel ──────────────────────────────────────────────────────────
+  // ── Agents panel (tree hierarchy) ──────────────────────────────────────────
+
+  // Clean display name: strip UUIDs, show meaningful label
+  function agentDisplayName(agent) {
+    // Prefer server-derived name (from agent-tracker.ts)
+    if (agent.name) return agent.name;
+    // If agent_id is "main", use session project or short ID
+    var aid = agent.agent_id || '';
+    if (aid === 'main') {
+      if (agent.cwd) return agent.cwd.split('/').filter(Boolean).pop() || 'main';
+      // Short session prefix instead of full UUID
+      var sid = agent.session_id || agent.id || '';
+      return sid.length > 12 ? 'Session ' + sid.slice(0, 8) : sid || 'main';
+    }
+    // Subagent: agent_id is usually a UUID — show short version
+    return aid.length > 16 ? 'Sub-' + aid.slice(0, 6) : aid;
+  }
+
+  function buildAgentTree() {
+    var sessions = {};
+    var orphans = [];
+    state.agents.forEach(function (agent) {
+      var sid = agent.session_id || '';
+      var aid = agent.agent_id || 'main';
+      if (!sid) { orphans.push(agent); return; }
+      if (!sessions[sid]) sessions[sid] = { main: null, subs: [] };
+      if (aid === 'main') sessions[sid].main = agent;
+      else sessions[sid].subs.push(agent);
+    });
+    return { sessions: sessions, orphans: orphans };
+  }
+
+  function buildAgentRow(agent, isSub, isLast, flatIdx) {
+    var statusClass = agent.status || 'active';
+    var name = agentDisplayName(agent);
+    var focused = (state.activePanel === 0 && state.focusedRow[0] === flatIdx);
+    var selected = (state.selectedAgentId === agent.id);
+    var rowClass = 'agent-row' + (focused ? ' focused' : '') + (selected ? ' selected' : '') + (isSub ? ' subagent' : ' main-agent');
+
+    var dotChar = STATUS_DOTS[statusClass] || STATUS_DOTS.disconnected;
+    var dot = createEl('span', { className: 'agent-dot ' + statusClass, textContent: dotChar });
+    var nameEl = createEl('span', { className: 'agent-name', textContent: name });
+    var timeEl = createEl('span', { className: 'agent-time', textContent: timeAgo(agent.last_seen_at) });
+
+    var topChildren = [dot, nameEl];
+
+    // Sub-count badge for main agents with children
+    if (!isSub && agent._subCount > 0) {
+      topChildren.push(createEl('span', { className: 'agent-sub-count', textContent: agent._subCount + ' sub' }));
+    }
+
+    // Alert badges
+    if (statusClass === 'active' && isAgentStuck(agent.id)) {
+      topChildren.push(createEl('span', { className: 'agent-alert stuck', textContent: '! STUCK' }));
+    } else if (isAgentLooping(agent.id)) {
+      topChildren.push(createEl('span', { className: 'agent-alert loop', textContent: '! LOOP' }));
+    } else if (typeof hasCorrectionSpiral === 'function' && hasCorrectionSpiral(agent.id)) {
+      topChildren.push(createEl('span', { className: 'agent-alert spiral', textContent: '! SPIRAL' }));
+    } else if (typeof hasErrorBurst === 'function' && hasErrorBurst(agent.id)) {
+      topChildren.push(createEl('span', { className: 'agent-alert errors', textContent: '! ERRORS' }));
+    } else if (typeof isMarathonSession === 'function' && isMarathonSession(agent.id)) {
+      topChildren.push(createEl('span', { className: 'agent-alert marathon', textContent: 'MARATHON' }));
+    }
+
+    topChildren.push(timeEl);
+    var topRow = createEl('div', { className: 'agent-row-top' }, topChildren);
+    var children = [topRow];
+
+    if (selected && agent.cwd) {
+      children.push(createEl('div', { className: 'agent-activity cwd', textContent: agent.cwd }));
+    }
+
+    // Live activity line — show current tool + target
+    var currentAct = getAgentCurrentActivity(agent.id);
+    var activity = '';
+    if (statusClass === 'active' && isAgentStuck(agent.id)) {
+      activity = 'no activity for ' + timeAgo(agent.last_seen_at) + ' — check terminal';
+    } else if (currentAct && statusClass === 'active') {
+      activity = currentAct.tool + (currentAct.target ? ' ' + currentAct.target : '');
+    } else if (statusClass === 'idle') {
+      activity = 'idle ' + timeAgo(agent.last_seen_at);
+    } else if (agent.current_tool) {
+      activity = agent.current_tool;
+    }
+    if (activity) {
+      children.push(createEl('div', { className: 'agent-activity', textContent: activity }));
+    }
+
+    // Stats line — diff stats, files touched, session duration
+    var diff = getAgentDiffStats(agent.id);
+    var fileCount = getAgentFileCount(agent.id);
+    var statParts = [];
+    if (diff.added > 0 || diff.removed > 0) {
+      statParts.push('+' + diff.added + ' -' + diff.removed);
+    }
+    if (fileCount > 0) {
+      statParts.push(fileCount + ' file' + (fileCount !== 1 ? 's' : ''));
+    }
+    if (agent.first_seen_at) {
+      statParts.push(elapsed(agent.first_seen_at));
+    }
+    if (statParts.length > 0) {
+      children.push(createEl('div', { className: 'agent-stats', textContent: statParts.join('  ·  ') }));
+    }
+
+    // Store tooltip data for custom tooltip
+    var tipParts = [];
+    if (agent.name) tipParts.push('Name: ' + agent.name);
+    tipParts.push('ID: ' + agent.id);
+    if (agent.session_id) tipParts.push('Session: ' + agent.session_id);
+    if (agent.cwd) tipParts.push('Path: ' + agent.cwd);
+    if (agent.model) tipParts.push('Model: ' + agent.model);
+    tipParts.push('Status: ' + statusClass);
+    if (agent.current_tool) tipParts.push('Activity: ' + agent.current_tool);
+    if (agent.current_mission_id) tipParts.push('Mission: ' + agent.current_mission_id);
+
+    var row = createEl('div', { className: rowClass, 'data-agent-id': agent.id }, children);
+    row.setAttribute('data-tooltip', tipParts.join('\n'));
+    return row;
+  }
 
   function renderAgents() {
     $agentsBadge.textContent = state.agents.length;
@@ -370,52 +702,43 @@
       return;
     }
 
-    state.agents.forEach(function (agent, i) {
-      var statusClass = agent.status || 'active';
-      var name = agent.name || agent.agent_id || agent.id;
-      var isSubagent = agent.agent_id && agent.agent_id !== 'main';
-      var focused = (state.activePanel === 0 && state.focusedRow[0] === i);
-      var selected = (state.selectedAgentId === agent.id);
-      var rowClass = 'agent-row' + (focused ? ' focused' : '') + (selected ? ' selected' : '') + (isSubagent ? ' subagent' : '');
+    var tree = buildAgentTree();
+    var flatIdx = 0;
+    var sessionIds = Object.keys(tree.sessions);
 
-      // Status dot (Unicode)
-      var dotChar = STATUS_DOTS[statusClass] || STATUS_DOTS.disconnected;
-      var dot = createEl('span', { className: 'agent-dot ' + statusClass, textContent: dotChar });
-      var nameEl = createEl('span', { className: 'agent-name', textContent: (isSubagent ? '\u2514 ' : '') + name });
-      var timeEl = createEl('span', { className: 'agent-time', textContent: timeAgo(agent.last_seen_at) });
+    sessionIds.forEach(function (sid) {
+      var group = tree.sessions[sid];
+      var main = group.main;
+      var subs = group.subs;
 
-      var topChildren = [dot, nameEl];
+      var container = createEl('div', { className: 'agent-group' });
 
-      // Alert badges
-      if (statusClass === 'active' && isAgentStuck(agent.id)) {
-        topChildren.push(createEl('span', { className: 'agent-alert stuck', textContent: '! STUCK' }));
-      } else if (isAgentLooping(agent.id)) {
-        topChildren.push(createEl('span', { className: 'agent-alert loop', textContent: '! LOOP' }));
+      // Main agent row (no connectors, bold, full width)
+      if (main) {
+        main._subCount = subs.length;
+        container.appendChild(buildAgentRow(main, false, false, flatIdx++));
+      } else {
+        // No main agent — show session label
+        var label = 'Session ' + sid.slice(0, 8);
+        container.appendChild(createEl('div', { className: 'agent-group-label', textContent: label }));
       }
 
-      topChildren.push(timeEl);
-      var topRow = createEl('div', { className: 'agent-row-top' }, topChildren);
-
-      var children = [topRow];
-
-      // Show cwd when selected or stuck — helps find the right terminal
-      if (selected && agent.cwd) {
-        children.push(createEl('div', { className: 'agent-activity cwd', textContent: agent.cwd }));
+      // Subagents nested underneath
+      if (subs.length > 0) {
+        var subContainer = createEl('div', { className: 'agent-subs' });
+        subs.forEach(function (sub, j) {
+          sub._subCount = 0;
+          subContainer.appendChild(buildAgentRow(sub, true, j === subs.length - 1, flatIdx++));
+        });
+        container.appendChild(subContainer);
       }
 
-      // Activity line
-      var activity = agent.current_tool || '';
-      if (statusClass === 'active' && isAgentStuck(agent.id)) {
-        activity = 'no activity for ' + timeAgo(agent.last_seen_at) + ' — check terminal';
-      } else if (statusClass === 'idle') {
-        activity = 'idle ' + timeAgo(agent.last_seen_at);
-      }
-      if (activity) {
-        children.push(createEl('div', { className: 'agent-activity', textContent: activity }));
-      }
+      $agentsList.appendChild(container);
+    });
 
-      var row = createEl('div', { className: rowClass, 'data-agent-id': agent.id }, children);
-      $agentsList.appendChild(row);
+    tree.orphans.forEach(function (agent) {
+      agent._subCount = 0;
+      $agentsList.appendChild(buildAgentRow(agent, false, true, flatIdx++));
     });
   }
 
@@ -470,6 +793,23 @@
         }
       }
 
+      // Subtask progress bar
+      if (mission.subtasks) {
+        var subtasks = mission.subtasks;
+        if (typeof subtasks === 'string') {
+          try { subtasks = JSON.parse(subtasks); } catch (e) { subtasks = null; }
+        }
+        if (Array.isArray(subtasks) && subtasks.length > 0) {
+          var done = subtasks.filter(function (s) { return s.done; }).length;
+          var total = subtasks.length;
+          var pct = Math.round((done / total) * 100);
+          var progressFill = createEl('div', { className: 'subtask-progress-fill', style: 'width:' + pct + '%' });
+          var progressBar = createEl('div', { className: 'subtask-progress-bar' }, [progressFill]);
+          var progressLabel = createEl('span', { className: 'subtask-progress-label', textContent: done + '/' + total });
+          children.push(createEl('div', { className: 'subtask-progress' }, [progressBar, progressLabel]));
+        }
+      }
+
       var row = createEl('div', { className: rowClass, 'data-mission-id': mission.id }, children);
       $missionsList.appendChild(row);
     });
@@ -477,19 +817,76 @@
 
   // ── Timeline panel ────────────────────────────────────────────────────────
 
+  // Smarter per-tool-type summary (inspired by disler's toolInfo pattern)
   function getEventDetail(evt) {
     var input = evt.tool_input;
-    if (!input) return '';
+    if (!input) return evt.event_type === 'Stop' ? 'session ended' : '';
     if (typeof input === 'string') {
       try { input = JSON.parse(input); } catch (e) { return ''; }
     }
-    if (input.file_path) return input.file_path.split('/').slice(-2).join('/');
+    var toolName = evt.tool_name || '';
+
+    // File tools: show last 2 path segments
+    if (input.file_path) {
+      var shortPath = input.file_path.split('/').slice(-2).join('/');
+      if (toolName === 'Edit' && input.old_string) return shortPath + ' (edit)';
+      if (toolName === 'Write') return shortPath + ' (write)';
+      return shortPath;
+    }
+    // Bash: show command, truncated
     if (input.command) {
       var cmd = input.command;
+      if (input.description) return input.description;
       return cmd.length > 60 ? cmd.substring(0, 57) + '...' : cmd;
     }
-    if (input.pattern) return input.pattern;
+    // Search tools
+    if (input.pattern) {
+      var search = input.pattern;
+      if (input.path) search += ' in ' + input.path.split('/').pop();
+      return search.length > 60 ? search.substring(0, 57) + '...' : search;
+    }
+    // Agent tool
+    if (input.prompt) return (input.description || input.prompt.substring(0, 50) + '...');
+    // Task tools
+    if (input.description) return input.description;
+    // SendMessage
+    if (input.to) return '-> ' + input.to;
+    // WebFetch/WebSearch
+    if (input.url) return input.url.length > 60 ? input.url.substring(0, 57) + '...' : input.url;
+    if (input.query) return input.query;
+    // Skill
+    if (input.skill) return input.skill;
     return '';
+  }
+
+  function getExpandedDetail(evt) {
+    var parts = [];
+    var input = evt.tool_input;
+    if (input) {
+      if (typeof input === 'string') {
+        try { input = JSON.parse(input); } catch (e) { /* keep string */ }
+      }
+      if (typeof input === 'object' && input !== null) {
+        if (input.file_path) parts.push('File: ' + input.file_path);
+        if (input.command) parts.push('Cmd: ' + input.command);
+        if (input.pattern) parts.push('Pattern: ' + input.pattern);
+        if (input.content) parts.push('Content: ' + String(input.content).slice(0, 200) + (String(input.content).length > 200 ? '...' : ''));
+        if (input.old_string) parts.push('Replace: ' + String(input.old_string).slice(0, 100) + ' → ' + String(input.new_string || '').slice(0, 100));
+      }
+    }
+    var output = evt.tool_output;
+    if (output) {
+      if (typeof output === 'string') {
+        try { output = JSON.parse(output); } catch (e) { /* keep string */ }
+      }
+      if (typeof output === 'string' && output.length > 0) {
+        parts.push('Output: ' + output.slice(0, 200) + (output.length > 200 ? '...' : ''));
+      } else if (typeof output === 'object' && output !== null) {
+        if (output.error) parts.push('Error: ' + String(output.error).slice(0, 200));
+        if (output.stderr) parts.push('Stderr: ' + String(output.stderr).slice(0, 200));
+      }
+    }
+    return parts.join('\n');
   }
 
   function buildTimelineRowEl(evt) {
@@ -507,7 +904,28 @@
     var toolEl = createEl('span', { className: 'timeline-tool', textContent: toolName });
     var detailEl = createEl('span', { className: 'timeline-detail', textContent: detail });
 
-    return createEl('div', { className: 'timeline-row' }, [timeEl, agentEl, toolEl, detailEl]);
+    var row = createEl('div', { className: 'timeline-row' }, [timeEl, agentEl, toolEl, detailEl]);
+
+    // Expandable: click to show full input/output
+    if (evt.tool_input || evt.tool_output) {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', function () {
+        var existing = row.querySelector('.timeline-expanded');
+        if (existing) {
+          existing.remove();
+          row.classList.remove('expanded');
+          return;
+        }
+        var expanded = getExpandedDetail(evt);
+        if (expanded) {
+          var expandEl = createEl('pre', { className: 'timeline-expanded', textContent: expanded });
+          row.appendChild(expandEl);
+          row.classList.add('expanded');
+        }
+      });
+    }
+
+    return row;
   }
 
   function renderTimeline() {
@@ -693,6 +1111,35 @@
       });
     }
     $usageList.appendChild(summary);
+
+    // ── Context window health for active sessions (inspired by claude-hud) ──
+    if (hasTokens && tokenData.activeSessions > 0) {
+      var activeSessions = tokenData.sessions.filter(function (s) { return s.isActive; });
+      if (activeSessions.length > 0) {
+        var ctxSection = createEl('div', { className: 'usage-section' });
+        ctxSection.appendChild(createEl('div', { className: 'usage-section-title', textContent: 'Active Sessions — Context Health' }));
+
+        activeSessions.forEach(function (s) {
+          var pct = s.contextWindowPercent || 0;
+          var colorClass = pct >= 85 ? 'ctx-danger' : pct >= 60 ? 'ctx-warning' : 'ctx-ok';
+          var sid = s.sessionId.length > 10 ? s.sessionId.slice(0, 8) + '..' : s.sessionId;
+          var modelShort = (s.model || 'unknown').replace('claude-', '');
+
+          var fill = createEl('div', { className: 'ctx-bar-fill ' + colorClass, style: 'width:' + pct + '%' });
+          var track = createEl('div', { className: 'ctx-bar-track' }, [fill]);
+
+          var row = createEl('div', { className: 'ctx-row' }, [
+            createEl('span', { className: 'ctx-label', textContent: sid, title: s.sessionId }),
+            createEl('span', { className: 'ctx-model', textContent: modelShort }),
+            track,
+            createEl('span', { className: 'ctx-pct ' + colorClass, textContent: pct + '%' }),
+            createEl('span', { className: 'ctx-tokens', textContent: formatTokens(s.contextWindowUsed) }),
+          ]);
+          ctxSection.appendChild(row);
+        });
+        $usageList.appendChild(ctxSection);
+      }
+    }
 
     // ── Token breakdown (real data) ──
     if (hasTokens) {
@@ -911,6 +1358,53 @@
         });
       })
       .catch(function () { showToast('Failed to create mission'); });
+  }
+
+  // ── Instruction tracking ─────────────────────────────────────────────────
+  // Show sent instructions with delivery status so user knows if agent received them.
+
+  var sentInstructions = []; // { id, message, status, target_agent_id, created_at }
+  var MAX_INSTRUCTION_LOG = 5;
+
+  function trackInstruction(instr) {
+    sentInstructions.unshift({
+      id: instr.id,
+      message: instr.message,
+      status: 'pending',
+      target: instr.target_agent_id,
+      time: instr.created_at || new Date().toISOString(),
+    });
+    if (sentInstructions.length > MAX_INSTRUCTION_LOG) sentInstructions.pop();
+    renderInstructionLog();
+  }
+
+  function markInstructionDelivered(instr) {
+    var found = sentInstructions.find(function (s) { return s.id === instr.id; });
+    if (found) {
+      found.status = 'delivered';
+      renderInstructionLog();
+      showToast('\u2713 Agent received: "' + found.message.slice(0, 40) + (found.message.length > 40 ? '...' : '') + '"');
+    }
+  }
+
+  function renderInstructionLog() {
+    var $log = document.getElementById('instruction-log');
+    if (!$log) return;
+    clearElement($log);
+
+    if (sentInstructions.length === 0) return;
+
+    sentInstructions.forEach(function (instr) {
+      var statusText = instr.status === 'delivered' ? '\u2713 delivered' : '\u25CB pending...';
+      var statusClass = 'instr-status ' + instr.status;
+
+      var row = createEl('div', { className: 'instr-log-row' }, [
+        createEl('span', { className: statusClass, textContent: statusText }),
+        createEl('span', { className: 'instr-msg', textContent: instr.message.length > 50 ? instr.message.slice(0, 47) + '...' : instr.message }),
+        createEl('span', { className: 'instr-time', textContent: formatTime(instr.time) }),
+      ]);
+      $log.appendChild(row);
+    });
   }
 
   // ── Instruction sending ──────────────────────────────────────────────────
@@ -1173,6 +1667,108 @@
     }
   };
 
+  // ── Browser notifications (from disler) ────────────────────────────────
+
+  var notificationsEnabled = false;
+  var notifiedAgents = {}; // agentId -> last notification type
+
+  function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(function (perm) {
+        notificationsEnabled = (perm === 'granted');
+      });
+    } else {
+      notificationsEnabled = (Notification.permission === 'granted');
+    }
+  }
+
+  function notifyAgentIssue(agentId, issue) {
+    if (!notificationsEnabled) return;
+    if (notifiedAgents[agentId] === issue) return; // don't spam
+    notifiedAgents[agentId] = issue;
+    try {
+      var n = new Notification('Agent Alert: ' + issue, {
+        body: 'Agent ' + agentId + ' — ' + issue,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚠️</text></svg>',
+        requireInteraction: true,
+      });
+      n.onclick = function () { window.focus(); n.close(); };
+      // Auto-close after 15s
+      setTimeout(function () { n.close(); }, 15000);
+    } catch (e) { /* ignore */ }
+  }
+
+  // Check agents for issues and fire notifications
+  function checkAgentNotifications() {
+    state.agents.forEach(function (agent) {
+      if (agent.status !== 'active') return;
+      if (isAgentStuck(agent.id)) {
+        notifyAgentIssue(agent.id, 'STUCK — no activity');
+      } else if (isAgentLooping(agent.id)) {
+        notifyAgentIssue(agent.id, 'LOOP detected');
+      } else if (hasCorrectionSpiral(agent.id)) {
+        notifyAgentIssue(agent.id, 'Correction spiral');
+      } else if (hasErrorBurst(agent.id)) {
+        notifyAgentIssue(agent.id, 'Error burst (5+ failures)');
+      } else {
+        delete notifiedAgents[agent.id]; // Clear when resolved
+      }
+    });
+  }
+
+  // ── Visibility-aware polling (from builderz) ──────────────────────────
+
+  var tabVisible = true;
+  var pendingRefreshOnVisible = false;
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      tabVisible = false;
+    } else {
+      tabVisible = true;
+      if (pendingRefreshOnVisible) {
+        pendingRefreshOnVisible = false;
+        renderAgents();
+        fetchUsage();
+      }
+    }
+  });
+
+  // ── Secret scanner (from builderz) ────────────────────────────────────
+
+  var SECRET_PATTERNS = [
+    { name: 'AWS Key', pattern: /AKIA[0-9A-Z]{16}/ },
+    { name: 'AWS Secret', pattern: /[0-9a-zA-Z/+]{40}/ },
+    { name: 'GitHub Token', pattern: /gh[ps]_[A-Za-z0-9_]{36,}/ },
+    { name: 'Anthropic Key', pattern: /sk-ant-[a-zA-Z0-9_-]{20,}/ },
+    { name: 'OpenAI Key', pattern: /sk-[a-zA-Z0-9]{20,}/ },
+    { name: 'Stripe Key', pattern: /sk_live_[a-zA-Z0-9]{20,}/ },
+    { name: 'Slack Token', pattern: /xox[bpors]-[0-9a-zA-Z-]{10,}/ },
+    { name: 'Private Key', pattern: /-----BEGIN (RSA |EC )?PRIVATE KEY-----/ },
+    { name: 'JWT', pattern: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/ },
+    { name: 'Generic Secret', pattern: /(?:api[_-]?key|secret|password|token)\s*[:=]\s*['"][A-Za-z0-9_\-/.]{16,}['"]/i },
+  ];
+
+  var secretAlerts = []; // { agentId, secretType, timestamp }
+
+  function scanForSecrets(evt) {
+    if (!evt.tool_output) return;
+    var output = typeof evt.tool_output === 'string' ? evt.tool_output : JSON.stringify(evt.tool_output);
+    for (var i = 0; i < SECRET_PATTERNS.length; i++) {
+      if (SECRET_PATTERNS[i].pattern.test(output)) {
+        secretAlerts.push({
+          agentId: evt.agent_id || 'unknown',
+          secretType: SECRET_PATTERNS[i].name,
+          timestamp: evt.timestamp || new Date().toISOString(),
+        });
+        // Keep last 50 alerts
+        if (secretAlerts.length > 50) secretAlerts.shift();
+        showToast('SECRET DETECTED: ' + SECRET_PATTERNS[i].name + ' in tool output!');
+        break; // One alert per event
+      }
+    }
+  }
+
   // ── Initialize ────────────────────────────────────────────────────────────
 
   renderConnectionStatus();
@@ -1180,6 +1776,7 @@
   setActivePanel(0);
   connectWebSocket();
   fetchUsage();
+  requestNotificationPermission();
 
   // Set initial mobile state
   if (isMobile()) {
@@ -1190,11 +1787,23 @@
   setInterval(updateUptime, 1000);
 
   // Refresh agent displays every 10s (time-ago + stuck detection)
+  // Visibility-aware: skip when tab is hidden
   setInterval(function () {
-    renderAgents();
+    if (tabVisible) {
+      renderAgents();
+      checkAgentNotifications();
+    } else {
+      pendingRefreshOnVisible = true;
+    }
   }, 10000);
 
-  // Refresh usage stats every 30s
-  setInterval(fetchUsage, 30000);
+  // Refresh usage stats every 30s (visibility-aware)
+  setInterval(function () {
+    if (tabVisible) {
+      fetchUsage();
+    } else {
+      pendingRefreshOnVisible = true;
+    }
+  }, 30000);
 
 })();

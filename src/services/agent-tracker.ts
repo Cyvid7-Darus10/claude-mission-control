@@ -65,10 +65,10 @@ function deriveName(
     return `Sub-${shortId.slice(0, 6)}`;
   }
 
-  // Main agent: NATO codename + project folder
+  // Main agent: project folder + codename suffix for disambiguation
   const codename = CODENAMES[hashForCodename(sessionId) % CODENAMES.length];
   const project = cwd ? cwd.split("/").filter(Boolean).pop() : null;
-  return project ? `${codename} (${project})` : codename;
+  return project ? `${project} — ${codename}` : codename;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +211,9 @@ class AgentTracker {
     if (this.intervalHandle !== null) {
       return; // already running
     }
+
+    // Run an immediate sweep on startup to fix stale agents from before restart
+    this.sweep();
 
     this.intervalHandle = setInterval(() => {
       this.sweep();

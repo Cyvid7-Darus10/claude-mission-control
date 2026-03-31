@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mission Control — Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: var(--bg-base);
+    }
+    .login-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      padding: 32px;
+      width: 320px;
+      max-width: 90vw;
+      text-align: center;
+    }
+    .login-logo {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .login-sub {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+    }
+    .login-label {
+      display: block;
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-align: left;
+      margin-bottom: 6px;
+    }
+    .login-input {
+      width: 100%;
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 8px;
+      text-align: center;
+      padding: 12px;
+      outline: none;
+      margin-bottom: 16px;
+    }
+    .login-input:focus {
+      border-color: var(--text-secondary);
+    }
+    .login-input::placeholder {
+      font-size: 14px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+    }
+    .login-btn {
+      width: 100%;
+      background: var(--bg-active);
+      color: var(--text-bright);
+      border: 1px solid var(--border-bright);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      letter-spacing: 1px;
+      padding: 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 80ms;
+    }
+    .login-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--text-muted);
+    }
+    .login-error {
+      font-size: var(--font-size-xs);
+      color: var(--danger);
+      margin-top: 12px;
+      min-height: 16px;
+    }
+    .login-hint {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      margin-top: 20px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="login-logo">{ SENTINEL }</div>
+    <div class="login-sub">MISSION CONTROL</div>
+    <form id="login-form">
+      <label class="login-label" for="code-input">Access Code</label>
+      <input type="text" id="code-input" class="login-input"
+             placeholder="------" maxlength="6" pattern="\d{6}"
+             inputmode="numeric" autocomplete="off" autofocus>
+      <button type="submit" class="login-btn">Authenticate</button>
+    </form>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-hint">
+      The 6-digit access code is shown in the<br>terminal when the server starts.
+    </div>
+  </div>
+  <script>
+    (function() {
+      var form = document.getElementById('login-form');
+      var input = document.getElementById('code-input');
+      var error = document.getElementById('login-error');
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var code = input.value.trim();
+        if (code.length !== 6) {
+          error.textContent = 'Enter the 6-digit code';
+          return;
+        }
+        error.textContent = '';
+
+        fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(res) {
+            if (res.ok) {
+              window.location.href = '/';
+            } else {
+              return res.json().then(function(body) {
+                error.textContent = body.error || 'Invalid code';
+                input.value = '';
+                input.focus();
+              });
+            }
+          })
+          .catch(function() {
+            error.textContent = 'Connection failed';
+          });
+      });
+
+      // Auto-submit when 6 digits entered
+      input.addEventListener('input', function() {
+        // Strip non-digits
+        input.value = input.value.replace(/\D/g, '');
+        if (input.value.length === 6) {
+          form.dispatchEvent(new Event('submit'));
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

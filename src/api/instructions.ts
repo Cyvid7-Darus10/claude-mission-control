@@ -39,7 +39,10 @@ export async function handleInstructions(
     const pending = getPendingInstructions(agentId);
 
     for (const instruction of pending) {
-      markInstructionDelivered(instruction.id);
+      const delivered = markInstructionDelivered(instruction.id);
+      if (delivered) {
+        eventBus.emit('instruction:delivered', delivered);
+      }
     }
 
     sendJson(res, 200, pending);

@@ -1,4 +1,5 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -11,6 +12,7 @@ import { handleInstructions } from './api/instructions';
 import { handleUsage } from './api/usage';
 import { handleTokens } from './api/tokens';
 import { sendJson } from './api/utils';
+import { agentTracker } from './services/agent-tracker';
 
 // ---------------------------------------------------------------------------
 // Security event helpers
@@ -55,10 +57,17 @@ function getAllowedOrigins(port: number): readonly string[] {
   ];
 }
 
+// Private/local network IP ranges (RFC 1918 + link-local)
+const PRIVATE_IP_PATTERN = /^http:\/\/(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.\d{1,3}\.\d{1,3}):\d+$/;
+
 function isOriginAllowed(origin: string | undefined, port: number): boolean {
   // No Origin header = same-origin request or CLI/programmatic — allow
   if (!origin) return true;
-  return getAllowedOrigins(port).includes(origin);
+  // Exact localhost matches
+  if (getAllowedOrigins(port).includes(origin)) return true;
+  // Allow any private/local network IP (same WiFi)
+  if (PRIVATE_IP_PATTERN.test(origin)) return true;
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +127,32 @@ function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse, por
 // Server factory
 // ---------------------------------------------------------------------------
 
-export function createServer(port: number = 4280): { start: () => void; stop: () => void } {
+export function createServer(port: number = 4280): { start: () => void; stop: () => void; accessCode: string } {
+  // Generate access code and session token
+  const accessCode = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit code
+  const sessionToken = crypto.randomBytes(32).toString('hex');
+  const validSessions = new Set<string>();
+
+  function parseCookies(req: http.IncomingMessage): Record<string, string> {
+    const cookies: Record<string, string> = {};
+    const header = req.headers.cookie || '';
+    header.split(';').forEach((c) => {
+      const [key, ...rest] = c.trim().split('=');
+      if (key) cookies[key] = rest.join('=');
+    });
+    return cookies;
+  }
+
+  function isAuthenticated(req: http.IncomingMessage): boolean {
+    const cookies = parseCookies(req);
+    const token = cookies['mc_session'];
+    return token ? validSessions.has(token) : false;
+  }
+
+  function setSessionCookie(res: http.ServerResponse, token: string): void {
+    res.setHeader('Set-Cookie', `mc_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`);
+  }
+
   const server = http.createServer(async (req, res) => {
     // Validate origin before processing any request
     if (!setCorsHeaders(req, res, port)) return;
@@ -134,13 +168,56 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
     }
 
     try {
-      // Dashboard routes
-      if (method === 'GET' && (url === '/' || url === '/index.html')) {
-        serveDashboardFile('index.html', res);
+      // ── Auth routes (no auth required) ──
+      if (method === 'POST' && url === '/api/auth') {
+        const { parseBody } = await import('./api/utils');
+        const body = await parseBody(req);
+        const code = typeof body.code === 'string' ? body.code.trim() : '';
+        if (code === accessCode) {
+          const token = crypto.randomBytes(32).toString('hex');
+          validSessions.add(token);
+          setSessionCookie(res, token);
+          sendJson(res, 200, { ok: true });
+        } else {
+          emitSecurityEvent(1, 'AUTH', 'warn', 'Invalid access code attempt', req.socket.remoteAddress ?? 'unknown');
+          sendJson(res, 401, { error: 'Invalid access code' });
+        }
         return;
       }
+
+      // ── Hook endpoint: no auth (hooks don't have cookies) ──
+      if (url.startsWith('/api/events') && method === 'POST') {
+        await handleEvents(req, res);
+        return;
+      }
+
+      // ── Login page (served without auth) ──
+      if (method === 'GET' && (url === '/login' || url === '/login.html')) {
+        serveDashboardFile('login.html', res);
+        return;
+      }
+      // Static assets needed by login page
       if (method === 'GET' && url === '/styles.css') {
         serveDashboardFile('styles.css', res);
+        return;
+      }
+
+      // ── Auth check for everything else ──
+      if (!isAuthenticated(req)) {
+        if (method === 'GET' && (url === '/' || url === '/index.html')) {
+          // Redirect to login
+          res.writeHead(302, { 'Location': '/login' });
+          res.end();
+          return;
+        }
+        // API calls without auth
+        sendJson(res, 401, { error: 'Unauthorized — access code required' });
+        return;
+      }
+
+      // ── Dashboard routes (authenticated) ──
+      if (method === 'GET' && (url === '/' || url === '/index.html')) {
+        serveDashboardFile('index.html', res);
         return;
       }
       if (method === 'GET' && url === '/app.js') {
@@ -152,9 +229,9 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
         return;
       }
 
-      // API routes
+      // API routes (authenticated)
       if (url.startsWith('/api/events')) {
-        if (method === 'POST' || method === 'GET') {
+        if (method === 'GET') {
           await handleEvents(req, res);
           return;
         }
@@ -226,11 +303,16 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
     server,
     verifyClient: ({ req }: { req: http.IncomingMessage }) => {
       const origin = req.headers.origin as string | undefined;
-      const allowed = isOriginAllowed(origin, port);
-      if (!allowed) {
+      if (!isOriginAllowed(origin, port)) {
         emitSecurityEvent(3, 'WS ORIGIN', 'critical', 'Rejected WebSocket from unauthorized origin', origin ?? 'unknown');
+        return false;
       }
-      return allowed;
+      // Check auth cookie for WebSocket too
+      if (!isAuthenticated(req)) {
+        emitSecurityEvent(1, 'AUTH', 'warn', 'Rejected unauthenticated WebSocket', req.socket.remoteAddress ?? 'unknown');
+        return false;
+      }
+      return true;
     },
   });
 
@@ -272,6 +354,11 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
         ws.send(JSON.stringify({ type: 'instruction:new', data: d }));
       }
     };
+    const onInstructionDelivered = (d: unknown) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'instruction:delivered', data: d }));
+      }
+    };
     const onSecurityEvent = (d: unknown) => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'security:event', data: d }));
@@ -282,6 +369,7 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
     eventBus.on('event:new', onEventNew);
     eventBus.on('mission:update', onMissionUpdate);
     eventBus.on('instruction:new', onInstructionNew);
+    eventBus.on('instruction:delivered', onInstructionDelivered);
     eventBus.on('security:event', onSecurityEvent);
 
     ws.on('close', () => {
@@ -289,6 +377,7 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
       eventBus.off('event:new', onEventNew);
       eventBus.off('mission:update', onMissionUpdate);
       eventBus.off('instruction:new', onInstructionNew);
+      eventBus.off('instruction:delivered', onInstructionDelivered);
       eventBus.off('security:event', onSecurityEvent);
     });
 
@@ -299,14 +388,17 @@ export function createServer(port: number = 4280): { start: () => void; stop: ()
 
   return {
     start(): void {
-      server.listen(port, () => {
-        // Server started — caller handles banner
+      server.listen(port, '0.0.0.0', () => {
+        // Start the agent status sweep (active → idle → disconnected)
+        agentTracker.start();
       });
     },
     stop(): void {
+      agentTracker.stop();
       wss.clients.forEach((client) => client.close());
       wss.close();
       server.close();
     },
+    accessCode,
   };
 }

@@ -274,19 +274,44 @@ function openBrowser(url: string): void {
   });
 }
 
-function printBanner(port: number): void {
-  console.log(`
-  MISSION CONTROL v${VERSION}
-  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Dashboard: http://localhost:${port}
-  Hooks:     Listening for Claude Code events
+function printBanner(port: number, accessCode: string): void {
+  // Get local network IP for sharing
+  let localIp = 'unknown';
+  try {
+    const nets = require('os').networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          localIp = net.address;
+          break;
+        }
+      }
+      if (localIp !== 'unknown') break;
+    }
+  } catch {}
 
+  console.log(`
+  ┌─────────────────────────────────────────┐
+  │  { SENTINEL } MISSION CONTROL v${VERSION}     │
+  ├─────────────────────────────────────────┤
+  │                                         │
+  │  Local:   http://localhost:${port}        │
+  │  Network: http://${localIp}:${port}  │
+  │                                         │
+  │  Access Code: ${accessCode}                    │
+  │                                         │
+  │  Share the network URL + code with      │
+  │  others on the same WiFi network.       │
+  │                                         │
+  └─────────────────────────────────────────┘
+
+  Hooks: Listening for Claude Code events
   Press Ctrl+C to stop.
 `);
 }
 
 function startServer(port: number, shouldOpen: boolean): void {
-  const { start, stop } = createServer(port);
+  const { start, stop, accessCode } = createServer(port);
 
   process.on('SIGINT', () => {
     console.log('\n  Shutting down...');
@@ -300,7 +325,7 @@ function startServer(port: number, shouldOpen: boolean): void {
   });
 
   start();
-  printBanner(port);
+  printBanner(port, accessCode);
 
   if (shouldOpen) {
     openBrowser(`http://localhost:${port}`);

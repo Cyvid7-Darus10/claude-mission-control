@@ -32,6 +32,7 @@ export interface Mission {
   readonly started_at: string | null;
   readonly completed_at: string | null;
   readonly result: string | null;
+  readonly subtasks: string | null; // JSON: [{id, title, done}]
 }
 
 export interface Event {
@@ -113,6 +114,7 @@ function openDatabase(): Database.Database {
       result          TEXT
     );
 
+    -- subtasks: JSON array of {id, title, done} for progress tracking
     CREATE TABLE IF NOT EXISTS events (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
       agent_id        TEXT,
@@ -134,6 +136,13 @@ function openDatabase(): Database.Database {
       delivered_at    TEXT
     );
   `);
+
+  // Migration: add subtasks column to missions (JSON array of {id, title, done})
+  try {
+    db.exec(`ALTER TABLE missions ADD COLUMN subtasks TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
 
   // Usage summary table — persists aggregated daily stats even after raw events are purged
   db.exec(`
