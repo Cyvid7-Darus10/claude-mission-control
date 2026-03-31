@@ -12,6 +12,8 @@ See what your Claude Code agents are doing. Assign missions. Watch them work. St
 
 Palantir Gotham-inspired dark UI. Access-code protected. Mobile responsive. Only 2 dependencies.
 
+<img src="docs/tapes/setup.gif" alt="Mission Control setup demo" width="700">
+
 </div>
 
 ---
@@ -71,6 +73,8 @@ npm rebuild better-sqlite3
 npx tsx src/index.ts install
 ```
 
+<img src="docs/tapes/install.gif" alt="Hook installation" width="700">
+
 This adds hooks to `~/.claude/settings.json` so Claude Code reports activity to Mission Control. You only need to do this once.
 
 ### Step 3: Start the Dashboard
@@ -78,6 +82,8 @@ This adds hooks to `~/.claude/settings.json` so Claude Code reports activity to 
 ```bash
 npx tsx src/index.ts
 ```
+
+<img src="docs/tapes/start.gif" alt="Server startup" width="700">
 
 ```
   ┌─────────────────────────────────────────┐
