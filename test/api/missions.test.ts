@@ -104,6 +104,32 @@ describe('GET /api/missions', () => {
   });
 });
 
+describe('GET /api/missions/:id', () => {
+  let missionId: string;
+
+  beforeAll(async () => {
+    const res = await post('/api/missions', { title: 'Gettable mission', description: 'Details here' });
+    const data = await res.json();
+    missionId = data.id;
+  });
+
+  it('returns a single mission with events array', async () => {
+    const res = await f(`${BASE}/api/missions/${missionId}`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.id).toBe(missionId);
+    expect(data.title).toBe('Gettable mission');
+    expect(Array.isArray(data.events)).toBe(true);
+  });
+
+  it('returns 404 for nonexistent mission', async () => {
+    const res = await f(`${BASE}/api/missions/no-such-id`);
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.error).toBeDefined();
+  });
+});
+
 describe('PATCH /api/missions/:id', () => {
   let missionId: string;
 
