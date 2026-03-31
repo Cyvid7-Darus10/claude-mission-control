@@ -88,28 +88,18 @@
     <div id="right-col">
       <section id="missions-panel" class="panel" data-panel="missions">
         <div class="panel-header">
-          <span class="panel-title"><span class="panel-chevron">&#9656;</span> GOALS</span>
+          <span class="panel-title"><span class="panel-chevron">&#9656;</span> MISSIONS</span>
           <span class="panel-badge" id="missions-badge">0</span>
         </div>
         <div class="panel-body" id="missions-list">
           <div class="empty-state">
             <div class="empty-icon">&#9633;</div>
-            <div>No goals yet</div>
-            <div class="empty-hint">Press <kbd>n</kbd> to add a goal</div>
+            <div>No missions yet</div>
+            <div class="empty-hint">Missions auto-create when agents start working</div>
           </div>
         </div>
         <div class="panel-footer" id="mission-create-bar">
-          <div id="mission-inline-form" class="hidden">
-            <input type="text" id="mission-title-input" placeholder="Mission title..." class="inline-input">
-            <div class="inline-form-actions">
-              <button id="mission-create-btn" class="btn-submit">CREATE</button>
-              <button id="mission-cancel-btn" class="btn-cancel">ESC</button>
-            </div>
-          </div>
-          <div class="mission-footer-row">
-            <button id="new-mission-btn" class="btn-action" style="flex:1">+ ADD GOAL <kbd>n</kbd></button>
-            <button id="clear-done-missions" class="btn-action danger-text" style="flex-shrink:0">CLEAR DONE</button>
-          </div>
+          <button id="clear-done-missions" class="btn-action danger-text" style="width:100%">CLEAR COMPLETED</button>
         </div>
       </section>
 
