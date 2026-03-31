@@ -1672,6 +1672,34 @@ html, body {
   min-width: 0;
 }
 
+/* ── Agent filter tabs ─────────────────────────────────── */
+.agent-filters {
+  display: flex;
+  gap: 2px;
+}
+
+.agent-filter-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 80ms;
+}
+
+.agent-filter-btn:hover {
+  color: var(--text-secondary);
+}
+
+.agent-filter-btn.active {
+  color: var(--text-bright);
+  border-color: var(--border-bright);
+  background: var(--bg-hover);
+}
+
 /* ── Agent tree hierarchy ──────────────────────────────── */
 .agent-group {
   border-bottom: 1px solid var(--border);

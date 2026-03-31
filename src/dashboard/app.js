@@ -866,56 +866,65 @@
 
       var container = createEl('div', { className: 'agent-group' + (isCollapsed ? ' session-collapsed' : '') });
 
-      // Main agent row
-      if (main) {
-        main._subCount = subs.length;
+      // Main agent row (filtered)
+      if (main && mainMatches) {
+        main._subCount = matchingSubs.length;
         main._sessionCollapsed = isCollapsed;
-        var mainRow = buildAgentRow(main, false, false, flatIdx++);
-        container.appendChild(mainRow);
-      } else {
-        var label = 'Session ' + sid.slice(0, 8);
-        var labelEl = createEl('div', { className: 'agent-group-label', textContent: label });
-        if (subs.length > 0) {
-          var toggleEl = createEl('span', {
-            className: 'session-toggle',
-            textContent: isCollapsed ? '\u25B8 ' + subs.length + ' sub' : '\u25BE ' + subs.length + ' sub'
-          });
-          labelEl.appendChild(toggleEl);
-        }
-        container.appendChild(labelEl);
+        container.appendChild(buildAgentRow(main, false, false, flatIdx++));
+        visibleCount++;
+      } else if (main) {
+        flatIdx++;
       }
 
-      // Toggle click on the sub-count badge or main row
+      // Session label fallback
+      if (!main && matchingSubs.length > 0) {
+        container.appendChild(createEl('div', { className: 'agent-group-label', textContent: 'Session ' + sid.slice(0, 8) }));
+      }
+
+      // Toggle click
       (function (capturedSid) {
         container.addEventListener('click', function (e) {
-          var toggle = e.target.closest('.agent-sub-toggle');
-          if (toggle) {
+          if (e.target.closest('.agent-sub-toggle')) {
             e.stopPropagation();
             toggleSessionCollapse(capturedSid);
           }
         });
       })(sid);
 
-      // Subagents nested underneath (hidden when collapsed)
-      if (subs.length > 0 && !isCollapsed) {
+      // Subagents (filtered + collapsible)
+      if (matchingSubs.length > 0 && !isCollapsed) {
         var subContainer = createEl('div', { className: 'agent-subs' });
-        subs.forEach(function (sub, j) {
+        matchingSubs.forEach(function (sub, j) {
           sub._subCount = 0;
-          subContainer.appendChild(buildAgentRow(sub, true, j === subs.length - 1, flatIdx++));
+          subContainer.appendChild(buildAgentRow(sub, true, j === matchingSubs.length - 1, flatIdx++));
+          visibleCount++;
         });
         container.appendChild(subContainer);
-      } else if (subs.length > 0 && isCollapsed) {
-        // Still count flatIdx for collapsed subs so keyboard nav stays consistent
-        flatIdx += subs.length;
+      } else {
+        flatIdx += matchingSubs.length;
       }
+      // Advance flatIdx past non-matching subs
+      flatIdx += subs.length - matchingSubs.length;
 
       $agentsList.appendChild(container);
     });
 
     tree.orphans.forEach(function (agent) {
-      agent._subCount = 0;
-      $agentsList.appendChild(buildAgentRow(agent, false, true, flatIdx++));
+      if (matchesAgentFilter(agent)) {
+        agent._subCount = 0;
+        $agentsList.appendChild(buildAgentRow(agent, false, true, flatIdx++));
+        visibleCount++;
+      } else {
+        flatIdx++;
+      }
     });
+
+    if (visibleCount === 0) {
+      $agentsList.appendChild(createEl('div', {
+        className: 'empty-state',
+        textContent: 'No ' + agentFilter + ' agents'
+      }));
+    }
   }
 
   // ── Missions panel ────────────────────────────────────────────────────────
